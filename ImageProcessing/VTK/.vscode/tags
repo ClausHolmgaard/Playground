@@ -1,0 +1,13 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.9~svn20110310	//
+cube	../test.py	/^cube = vtk.vtkCubeSource()$/;"	kind:variable	line:3
+cube_actor	../test.py	/^cube_actor = vtk.vtkActor()$/;"	kind:variable	line:6
+cube_mapper	../test.py	/^cube_mapper = vtk.vtkPolyDataMapper()$/;"	kind:variable	line:4
+interactor	../test.py	/^interactor = vtk.vtkRenderWindowInteractor()$/;"	kind:variable	line:17
+render_window	../test.py	/^render_window = vtk.vtkRenderWindow()$/;"	kind:variable	line:12
+renderer	../test.py	/^renderer = vtk.vtkRenderer()$/;"	kind:variable	line:9
+test.py	../test.py	1;"	kind:file	line:1

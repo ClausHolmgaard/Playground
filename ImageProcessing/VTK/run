@@ -1,0 +1,4 @@
+#DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+#ScreenRun Run "cd $DIR"
+#ScreenRun Run "python main.py"
+python main.py
