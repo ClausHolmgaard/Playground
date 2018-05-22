@@ -1,0 +1,18 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.9~svn20110310	//
+VispyExample	../vispy_example.py	/^class VispyExample(object):$/;"	kind:class	line:13
+VispyTest	../vispy_test.py	/^class VispyTest(object):$/;"	kind:class	line:5
+__init__	../vispy_example.py	/^    def __init__(self):$/;"	kind:member	line:14
+__init__	../vispy_test.py	/^    def __init__(self):$/;"	kind:member	line:6
+draw	../vispy_example.py	/^    def draw(self, ev):$/;"	kind:member	line:68
+draw_from_kinect	../vispy_example.py	/^    def draw_from_kinect(self, ev):$/;"	kind:member	line:40
+main.py	../main.py	1;"	kind:file	line:1
+run	../vispy_example.py	/^    def run(self):$/;"	kind:member	line:30
+stop	../vispy_example.py	/^    def stop(self):$/;"	kind:member	line:37
+vis_ex	../main.py	/^vis_ex = vispy_example.VispyExample()$/;"	kind:variable	line:3
+vispy_example.py	../vispy_example.py	1;"	kind:file	line:1
+vispy_test.py	../vispy_test.py	1;"	kind:file	line:1
