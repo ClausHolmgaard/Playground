@@ -22,5 +22,7 @@ def distance_from_plane(p, a, b, c, d):
     returns distance
     """
     norm = np.array([a, b, c])
+    if np.sum(norm**2) == 0:
+        return False
     return np.abs((np.dot(p, norm) + d)) / np.sqrt(np.sum(norm**2))
 
