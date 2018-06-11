@@ -1,6 +1,8 @@
 from openni import openni2
 from openni import _openni2 as c_api
 import numpy as np
+import time
+
 
 Depth_ResX = 512
 Depth_ResY = 424
@@ -12,6 +14,8 @@ RGB_fps = 30
 class Kinect(object):
     def __init__(self, debug=False):
         self.debug = debug
+        self._scale_depth = True
+        self._scale_rgb_colors = False
 
         openni2.initialize("/usr/lib")
 
@@ -60,7 +64,15 @@ class Kinect(object):
         self.depth_stream.stop()
         self.rgb_stream.stop()
     
+    def scale_depth(self, use_scale):
+        self._scale_depth = use_scale
+    
+    def scale_rgb(self, use_rgb_scale):
+        self._scale_rgb_colors = use_rgb_scale
+    
     def get_pointcloud(self):
+        before = time.time()
+
         depth_frame = self.depth_stream.read_frame()
         depth_data = depth_frame.get_buffer_as_uint16()
         rgb_frame = self.rgb_stream.read_frame()
@@ -80,33 +92,38 @@ class Kinect(object):
         depth_image = (depth_image - self.min_depth) / (self.max_depth - self.min_depth)
         if self.debug:
             print("Depth min: {}".format(np.min(depth_image)))
-            print("Depth max: {}".format(np.max(depth_image)))
+            print("Depth max: {}".format(max_depth))
         
         color_array = np.frombuffer(rgb_data, dtype=np.uint8)
-        color_image = color_array.reshape(Depth_ResY, Depth_ResX, -1) / 255.0
+        color_image = color_array.reshape(Depth_ResY, Depth_ResX, -1)
         
-        num_points = Depth_ResX * Depth_ResY
+        index_x = np.tile(np.arange(0, Depth_ResX), (Depth_ResY, 1))
+        index_y = np.tile(np.arange(0, Depth_ResY), (Depth_ResX, 1)).T
 
-        point_cloud = np.zeros((num_points, 6))
+        valid_points = np.count_nonzero(depth_image != 0.0)
+        valid_rgb = color_image[depth_image != 0.0]
+        valid_depth = depth_image[depth_image != 0.0]
+        valid_x = index_x[depth_image != 0.0]
+        valid_y = index_y[depth_image != 0.0]
 
-        counter = 0
-        for x in range(Depth_ResX):
-            for y in range(Depth_ResY):
-                # Skip invalid points
-                if depth_image[y, x] != 0.0:
-                    point_cloud[counter, 0] = x
-                    point_cloud[counter, 1] = -y
-                    point_cloud[counter, 2] = -depth_image[y, x] * 255.0 * 10
-                    if depth_image[y, x] != 0:
+        point_cloud = np.zeros((valid_points, 6))
+        point_cloud[:,0] = valid_x
+        point_cloud[:,1] = -valid_y
+        point_cloud[:,2] = valid_depth
+        point_cloud[:,3:] = valid_rgb
 
-                        point_cloud[counter, 3] = color_image[y, x, 0]
-                        point_cloud[counter, 4] = color_image[y, x, 1]
-                        point_cloud[counter, 5] = color_image[y, x, 2]
-                    else:
-                        point_cloud[counter, 3] = 0
-                        point_cloud[counter, 4] = 0
-                        point_cloud[counter, 5] = 0
-                    counter += 1
-                    
+        if self._scale_depth:
+            depth_scale = ((np.abs(np.mean(point_cloud[:,0])) + np.abs(np.mean(point_cloud[:,1]))) / 2) / np.mean(point_cloud[:,2])
+            point_cloud[:,2] *= -depth_scale
+            if self.debug:
+                print("Depth scale: {}".format(depth_scale))
+
+        if self._scale_rgb_colors:
+            point_cloud[:,3:] /= 255.0
+
+        after = time.time()
+        if self.debug:
+            print("Pointcloud calculation time: {} secs".format(after-before))
+
         return point_cloud
 
