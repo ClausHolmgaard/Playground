@@ -5,16 +5,17 @@ import threading
 import time
 
 
-class RansacInterface(threading.Thread):
+class RansacInterface(object):
     def __init__(self, kinect_instance):
-        threading.Thread.__init__(self)
+        #threading.Thread.__init__(self)
         self.k = kinect_instance
         self.pc = None
 
-        self.cloud_lock = threading.Lock()
+        #self.cloud_lock = threading.Lock()
 
-        self._is_running = True
+        #self._is_running = True
     
+    """
     def run(self):
         while self._is_running:
             self.do_ransac()
@@ -23,6 +24,7 @@ class RansacInterface(threading.Thread):
 
     def stop(self):
         self._is_running = False
+    """
 
     def do_ransac(self):
         
@@ -43,14 +45,14 @@ class RansacInterface(threading.Thread):
 
 
 k = Kinect(debug=False)
-k.scale_depth(True)
+#k.scale_size(200)
 k.scale_rgb(True)
 k.start()
 
 ri = RansacInterface(k)
 #ri.start()
 
-vis = Vispy(ri.get_pointcloud)
+vis = Vispy(ri.get_pointcloud, point_size=0.004, edge_width=0.004, symbol='o')
 #vis = Vispy(k.get_pointcloud)
 vis.run()
 
