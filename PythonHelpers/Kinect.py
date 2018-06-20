@@ -235,7 +235,7 @@ class Kinect(threading.Thread):
         valid_y = valid_depth * (index_y[depth != 0.0] - self.cy) / self.fx
 
         point_cloud = np.zeros((valid_points, 6))
-        point_cloud[:,0] = valid_x * self._size_scale
+        point_cloud[:,0] = -valid_x * self._size_scale
         point_cloud[:,1] = valid_y * self._size_scale
         point_cloud[:,2] = valid_depth * self._size_scale
         if self._scale_rgb:
