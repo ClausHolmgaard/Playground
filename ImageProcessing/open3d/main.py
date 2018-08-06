@@ -1,7 +1,7 @@
 import numpy as np
+import time
 import matplotlib.pyplot as plt
 
-import KinectImage
 import Open3DVisualize as vis
 
 
@@ -22,7 +22,26 @@ if __name__ == "__main__":
     k.stop()
     """
 
-    vis.visualize_animation()
+    #vis.visualize_animation()
+    #v = vis.Open3DVisualize()
+    #v.visualize()
+    #v.start()
+    #v.visualize_animation()
+    #v.end()
+
+    v = vis.Open3DVisualize()
+    v.run()
+    
+    time.sleep(3)
+    print("Calling display method")
+    v.display_pc()
+
+    while v.is_running:
+        time.sleep(1)
+
+    print("Stopping thread...")
+    v.end()
+
 
     #p = KinectImage.GrabPointcloud()
 
