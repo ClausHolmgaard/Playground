@@ -13,6 +13,7 @@ import PointSourceTest
 
 k = Kinect.Kinect(debug=False)
 k.start()
+k.wait_for_init()
 
 pc = AnimatedPointcloud.DisplayPointcloud(k.get_pointcloud)
 pc.start()

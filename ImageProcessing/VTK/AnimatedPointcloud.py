@@ -10,7 +10,7 @@ class VtkPointCloud:
 
     def __init__(self, zMin=-255.0, zMax=255.0, maxNumPoints=1e6):
         self.maxNumPoints = maxNumPoints
-        #self.vtkPolyData = vtk.vtkPolyData()
+        self.vtkPolyData = vtk.vtkPolyData()
         self.init_points()
         mapper = vtk.vtkPolyDataMapper()
         mapper.SetInputData(self.vtkPolyData)
@@ -28,9 +28,37 @@ class VtkPointCloud:
 
             self.vtkCells.InsertNextCell(1)
             self.vtkCells.InsertCellPoint(pointId)
+            self.Colors.InsertNextTuple3(*point[3:])
 
-            #self.Colors.InsertNextTuple3(0, 255, 0)
-            self.Colors.InsertNextTuple3(point[3], point[4], point[5])
+        self.vtkCells.Modified()
+        self.vtkPoints.Modified()
+        self.Colors.Modified()
+
+    def set_data(self, points):
+        """
+        x = points[:,0]
+        y = points[:,1]
+        z = points[:,2]
+        stacked = np.column_stack((x.ravel(), y.ravel(), z.ravel()))
+        """
+        #self.vtkPoints.SetNumberOfPoints(len(points[:,:3].ravel()))
+        #print(self.vtkPoints.GetNumberOfComponents())
+        
+        vtk_coords_array = numpy_support.numpy_to_vtk(num_array=points[:,:3], deep=True, array_type=vtk.VTK_FLOAT)
+        #vtk_color_cells = numpy_support.numpy_to_vtkIdTypeArray(points[:,3:].astype(np.int64), deep=True)
+        vtk_color_array = numpy_support.numpy_to_vtk(num_array=points[:,3:].astype(np.uint8), deep=True, array_type=vtk.VTK_UNSIGNED_CHAR)
+        #vtk_coords_array.SetNumberOfComponents(3)
+        #p = vtk.vtkPoints()
+        #p.SetData(vtk_coords_array)
+        
+        self.vtkPoints.SetData(vtk_coords_array)
+        #self.Colors.SetArray(vtk_color_array, self.vtkPoints.GetNumberOfPoints(), 0)
+
+        for i in range(self.vtkPoints.GetNumberOfPoints()):
+            self.vtkCells.InsertNextCell(1)
+            self.vtkCells.InsertCellPoint(i)
+
+        #self.vtkCells.SetCells(self.vtkPoints.GetNumberOfPoints(), vtk_color_cells)
 
         self.vtkCells.Modified()
         self.vtkPoints.Modified()
@@ -51,9 +79,17 @@ class VtkPointCloud:
         self.vtkPolyData.GetPointData().SetScalars(self.Colors)
         self.vtkPolyData.GetPointData().SetActiveScalars('Colors')
     
-    #def clear_points(self):
-    #    self.vtkPoints.
-
+    """
+    def clearPoints(self):
+        self.vtkPoints = vtk.vtkPoints()
+        self.vtkCells = vtk.vtkCellArray()
+        self.vtkDepth = vtk.vtkDoubleArray()
+        self.vtkDepth.SetName('DepthArray')
+        self.vtkPolyData.SetPoints(self.vtkPoints)
+        self.vtkPolyData.SetVerts(self.vtkCells)
+        self.vtkPolyData.GetPointData().SetScalars(self.vtkDepth)
+        self.vtkPolyData.GetPointData().SetActiveScalars('DepthArray')
+    """
 
 class AddPointCloudTimerCallback():
     def __init__(self, renderer, iterations, cb):
@@ -67,9 +103,13 @@ class AddPointCloudTimerCallback():
         self._data_changed = False
 
         self.callback = cb
+
+        self.pointCloud = VtkPointCloud()
+        self.renderer.AddActor(self.pointCloud.vtkActor)
     
     def set_data(self, data):
 
+        """
         max_x = np.max(data[:,0])
         max_y = np.max(data[:,1])
         max_z = np.max(data[:,2])
@@ -79,9 +119,7 @@ class AddPointCloudTimerCallback():
         data[:,0] -= int(max_x / 2)
         data[:,1] -= int(max_y / 2)
         data[:,:3] /= max_val * 2
-
-        data[:,3:] *= 255
-
+        """
         self._data = data
         self._data_changed = True
 
@@ -91,34 +129,41 @@ class AddPointCloudTimerCallback():
             run_time = time.time() - self.start_time
             fps = self.total_iterations / run_time
             print("FPS: {}".format(fps))
-            if run_time > 5:
+            if run_time > 60:
                 self.total_iterations = 0
                 self.start_time = time.time()
 
-        pointCloud = VtkPointCloud()
-        self.renderer.AddActor(pointCloud.vtkActor)
-        pointCloud.init_points()
+        #self.pointCloud.init_points()
 
         d = self.callback()
-        if d is not None:
-            self.set_data(d)
+        #if d is not None:
+        #    self.set_data(d)
 
-        if self._data_changed:
-            pointCloud.init_points()
-            if self._data is not None:
-                for p in self._data:
-                    pointCloud.addPoint(p)
-            self._data_changed = False
+        
+        #if self._data_changed:
+        #    self.pointCloud.init_points()
+            #if self._data is not None:
+            #    for p in self._data:
+            #        self.pointCloud.addPoint(p)
+            
+            #self._data_changed = False
+        
+        if d is not None:
+            self.pointCloud.set_data(d)
 
         iren.GetRenderWindow().Render()
+
+        """
         if self.iterations is None:
             pass
         else:
             if self.iterations == 30:
                 self.renderer.ResetCamera()
             self.iterations -= 1
-
+        """
         self.total_iterations += 1
+        
+
         
 class DisplayPointcloud(threading.Thread):
     def __init__(self, cb):

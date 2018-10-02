@@ -7,6 +7,7 @@ import time
 
 from Kinect import Kinect
 
+
 class Open3DVisualize():
     def __init__(self):
         self.k = Kinect(debug=True)

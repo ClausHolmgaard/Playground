@@ -1,9 +1,10 @@
 import numpy as np
 import time
 import matplotlib.pyplot as plt
+from Kinect import Kinect
 
-import Open3DVisualize as vis
-
+#import Open3DVisualize as vis
+from SimpleNonBlocking import O3DVisualize
 
 def example_help_function():
     import open3d
@@ -15,12 +16,19 @@ def example_help_function():
 if __name__ == "__main__":
     #example_help_function()
 
-    """
-    k = KinectImage.Kinect()
+    
+    k = Kinect()
     k.start()
-    vis.visualize(k.get_pointcloud())
+    k.wait_for_init()
+
+    o3d_vis = O3DVisualize()
+
+    for i in range(10):
+        o3d_vis.update_pointcloud(k.get_pointcloud())
+        #time.sleep(0.5)
+    
+    o3d_vis.stop()
     k.stop()
-    """
 
     #vis.visualize_animation()
     #v = vis.Open3DVisualize()
@@ -29,6 +37,8 @@ if __name__ == "__main__":
     #v.visualize_animation()
     #v.end()
 
+
+    """
     v = vis.Open3DVisualize()
     v.run()
     
@@ -41,7 +51,7 @@ if __name__ == "__main__":
 
     print("Stopping thread...")
     v.end()
-
+    """
 
     #p = KinectImage.GrabPointcloud()
 
