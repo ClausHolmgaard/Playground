@@ -1,0 +1,1 @@
+rsync -r -a -v -e ssh paperspace@184.105.181.112:/home/paperspace/code/SqueezeDet/results/ ./results/

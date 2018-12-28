@@ -5,28 +5,25 @@ import os
 from tqdm import tqdm
 
 
-def generate(data_dir=r"./data",
-             annotation=r"annot",
-             width=320,
-             height=320,
-             box_min=50,
-             box_max=100,
-             num_images=100):
-
-    #annotation = os.path.join(data_dir, annotation)
+def generate_data(data_dir=r"./data",
+                  width=320,
+                  height=320,
+                  box_min=50,
+                  box_max=100,
+                  num_images=100):
 
     print(f"Generating data in: {data_dir}")
-    print(f"Annotations file: {annotation}")
 
     remove_files_in_folder(data_dir)
 
-    with open(annotation, 'w') as f:
-        for i in tqdm(range(num_images)):
-            im_file_name = f"{i}.jpg"
-            im, center = generate_random_boximage(width, height, box_min, box_max)
-            f.write(f"{im_file_name},{center[0]},{center[1]}\n")
-            im_to_save = im
-            cv2.imwrite(os.path.join(data_dir, im_file_name), im)
+    for i in range(num_images):
+        im_file_name = f"{i}.jpg"
+        anno_file_name = os.path.join(data_dir, f"{i}.an")
+        im, center = generate_random_boximage(width, height, box_min, box_max)
+        with open(anno_file_name, 'w') as f:
+            f.write(f"{center[0]},{center[1]}\n")
+        im_to_save = im
+        cv2.imwrite(os.path.join(data_dir, im_file_name), im)
     
 def generate_random_boximage(width, height, box_min, box_max):
     im = np.zeros((width, height, 3), dtype=np.float32)

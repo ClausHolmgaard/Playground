@@ -54,10 +54,10 @@ def fire_layer(name, input, s1x1, e1x1, e3x3, weight_decay, stdd=0.01):
         name = name + '/expand3x3',
         filters=e3x3, kernel_size=(3, 3),
         strides=(1, 1),
-        use_bias=True,
+        use_bias=False,
         padding='SAME',
         kernel_initializer=TruncatedNormal(stddev=stdd),
-        activation="relu",
+        activation=None,
         kernel_regularizer=l2(weight_decay)
         )(act2)
     
