@@ -1,6 +1,6 @@
 # From: https://github.com/omni-us/squeezedet-keras
 
-from keras.layers import Input, Conv2D, concatenate
+from keras.layers import Input, Conv2D, concatenate, BatchNormalization, Activation
 from keras.initializers import TruncatedNormal
 from keras.regularizers import l2
 from keras import backend as K
@@ -25,24 +25,30 @@ def fire_layer(name, input, s1x1, e1x1, e3x3, weight_decay, stdd=0.01):
         filters=s1x1,
         kernel_size=(1, 1),
         strides=(1, 1),
-        use_bias=True,
+        use_bias=False,
         padding='SAME',
         kernel_initializer=TruncatedNormal(stddev=stdd),
-        activation="relu",
-        #kernel_regularizer=l2(weight_decay)
+        activation=None,
+        kernel_regularizer=l2(weight_decay)
         )(input)
+
+    bn1 = BatchNormalization(name=name+'/bn1')(sq1x1)
+    act1 = Activation('relu', name=name+'/act1')(bn1)
 
     ex1x1 = Conv2D(
         name = name + '/expand1x1',
         filters=e1x1,
         kernel_size=(1, 1),
         strides=(1, 1),
-        use_bias=True,
+        use_bias=False,
         padding='SAME',
         kernel_initializer=TruncatedNormal(stddev=stdd),
-        activation="relu",
-        #kernel_regularizer=l2(weight_decay)
-        )(sq1x1)
+        activation=None,
+        kernel_regularizer=l2(weight_decay)
+        )(act1)
+    
+    bn2 = BatchNormalization(name=name+'/bn2')(ex1x1)
+    act2 = Activation('relu', name=name+'/act2')(bn2)
 
     ex3x3 = Conv2D(
         name = name + '/expand3x3',
@@ -52,10 +58,14 @@ def fire_layer(name, input, s1x1, e1x1, e3x3, weight_decay, stdd=0.01):
         padding='SAME',
         kernel_initializer=TruncatedNormal(stddev=stdd),
         activation="relu",
-        #kernel_regularizer=l2(weight_decay)
-        )(sq1x1)
+        kernel_regularizer=l2(weight_decay)
+        )(act2)
+    
+    bn3 = BatchNormalization(name=name+'/bn3')(ex3x3)
+    act3 = Activation('relu', name=name+'/act3')(bn3)
 
-    return concatenate([ex1x1, ex3x3], axis=3)
+    #return concatenate([ex1x1, ex3x3], axis=3)
+    return concatenate([act2, act3], axis=3)
 
 if __name__ == "__main__":
     print("test")
