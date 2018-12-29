@@ -1,4 +1,4 @@
 rsync -r -a -v -e ssh . paperspace@184.105.181.112:/home/paperspace/code/SqueezeDet
-screen -S Run -X stuff 'clear\n'
-screen -S Run -X stuff 'cd /home/paperspace/code/SqueezeDet\n'
-screen -S Run -X stuff 'python main.py\n'
+screen -S Remote -X stuff 'clear\n'
+screen -S Remote -X stuff 'cd /home/paperspace/code/SqueezeDet\n'
+screen -S Remote -X stuff 'python main.py\n'

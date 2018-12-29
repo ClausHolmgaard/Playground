@@ -44,7 +44,7 @@ def create_model(width, height, channels, weight_decay=0):
 
     return Model(inputs=input_layer, outputs=preds)
 
-def create_loss_function(anchor_width, anchor_height, label_weight, offset_weight, offset_loss_weight, epsilon):
+def create_loss_function(anchor_width, anchor_height, label_weight, offset_weight, offset_loss_weight, epsilon, batchsize):
 
     def loss_function(y_true, y_pred):
         # We are predicting a batchsize x anchorwidth x anchorheight x 3 output.
@@ -69,9 +69,9 @@ def create_loss_function(anchor_width, anchor_height, label_weight, offset_weigh
 
         mask_offset_x = K.clip(g_x_i + l_x_i, 0, 1.0)
         mask_offset_y = K.clip(g_y_i + l_y_i, 0, 1.0)
-        
+
         # number of labels
-        num_labels = K.sum(c_labels)
+        num_labels = K.sum(c_labels) + 1
         num_non_labels = anchor_width * anchor_height - num_labels
         
         # Loss matrix for all entries
@@ -105,7 +105,7 @@ def create_loss_function(anchor_width, anchor_height, label_weight, offset_weigh
         
         o_loss = (o_loss_x + o_loss_y) * offset_loss_weight
         
-        total_loss = o_loss + c_loss
+        total_loss = (o_loss + c_loss)
         
         return total_loss
 

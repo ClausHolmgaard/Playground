@@ -1,17 +1,24 @@
 import numpy as np
 import os
+import datetime
 from keras import optimizers
 from keras import backend as K
 from keras.callbacks import Callback, TensorBoard, ModelCheckpoint
 
 from Models.PoolingAndFire import create_model, create_loss_function
-from PreProcess import data_generator, get_num_samples
+from PreProcess import data_generator, get_num_samples, create_rhd_annotations
 from GenerateData import generate_data
 
 
 LOG_DIR = os.path.expanduser("~/logs/SqueezeDet/")
-DATA_DIR = os.path.expanduser("~/datasets/Generated")
+#DATA_DIR = os.path.expanduser("~/datasets/Generated")
+DATA_DIR = os.path.expanduser("~/datasets/RHD/RHD_published_v2/training/color")
+ANNOTATIONS_PATH = os.path.expanduser("~/datasets/RHD/RHD_published_v2/training/annotations")
+RHD_ANNOTATIONS_FILE = os.path.expanduser("~/datasets/RHD/RHD_published_v2/training/anno_training.pickle")
 MODEL_SAVE_FILE = "./results/model_checkpoint.h5py"
+
+timestamp = '{:%Y-%m-%d_%H_%M}'.format(datetime.datetime.now())
+log_folder = os.path.join(LOG_DIR, timestamp)
 
 BATCHSIZE = 64
 EPSILON = 1e-16
@@ -28,9 +35,11 @@ HEIGHT = 320
 WIDTH = 320
 CHANNELS = 3
 
-VALIDATION_SPLIT = 0.3
+#VALIDATION_SPLIT = 0.3
 
-generate_data(DATA_DIR, WIDTH, HEIGHT, box_min=50, box_max=100, num_images=1000)
+#generate_data(DATA_DIR, WIDTH, HEIGHT, box_min=50, box_max=100, num_images=1000)
+
+create_rhd_annotations(RHD_ANNOTATIONS_FILE, ANNOTATIONS_PATH, DATA_DIR)
 
 model = create_model(320, 320, 3)
 out_shape = model.output_shape
@@ -45,16 +54,17 @@ l = create_loss_function(anchor_width,
                          LABEL_WEIGHT,
                          OFFSET_WEIGHT,
                          OFFSET_LOSS_WEIGHT,
-                         EPSILON)
+                         EPSILON,
+                         BATCHSIZE)
 
-num_samples = get_num_samples(DATA_DIR)
+num_samples = get_num_samples(DATA_DIR, type_sample='png')
 print(f"Number of sampels: {num_samples}")
 steps_epoch = num_samples // BATCHSIZE
 if steps_epoch < 1:
     steps_epoch = 1
 print(f"Steps per epoch: {steps_epoch}")
 
-opt = optimizers.Adam(lr=1e-4, decay=1e-4)
+opt = optimizers.Adam(lr=1e-5, decay=1e-5)
 model.compile(loss=l, optimizer=opt)
 
 class PrintInfo(Callback):
@@ -69,7 +79,7 @@ class PrintInfo(Callback):
 
 print_info = PrintInfo()
 
-tensorboard = TensorBoard(log_dir=LOG_DIR,
+tensorboard = TensorBoard(log_dir=log_folder,
                           histogram_freq=0,
                           batch_size=BATCHSIZE,
                           write_graph=True,
@@ -89,7 +99,7 @@ checkpoint = ModelCheckpoint(MODEL_SAVE_FILE,
                              mode='auto',
                              period=1)
 
-model.fit_generator(data_generator(DATA_DIR, BATCHSIZE, WIDTH, HEIGHT, anchor_width, anchor_height),
+model.fit_generator(data_generator(DATA_DIR, ANNOTATIONS_PATH, BATCHSIZE, WIDTH, HEIGHT, anchor_width, anchor_height, sample_type='png'),
                     steps_per_epoch=steps_epoch,
                     epochs=1000,
                     verbose=1,
