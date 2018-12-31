@@ -28,8 +28,8 @@ def create_model(width, height, channels, weight_decay=0):
 
     pool3 = MaxPool2D(pool_size=(3, 3), strides=(2, 2), padding='SAME', name="pool3")(fire2_2)
 
-    fire3_1 = fire_layer(name="fire3_1", input=pool3, s1x1=48, e1x1=192, e3x3=192, weight_decay=weight_decay)
-    fire3_2 = fire_layer(name="fire3_2", input=fire3_1, s1x1=48, e1x1=192, e3x3=192, weight_decay=weight_decay)
+    fire3_1 = fire_layer(name="fire3_1", input=pool3, s1x1=64, e1x1=256, e3x3=256, weight_decay=weight_decay)
+    fire3_2 = fire_layer(name="fire3_2", input=fire3_1, s1x1=64, e1x1=256, e3x3=256, weight_decay=weight_decay)
 
     pred_conf = Conv2D(name='pred_conf', filters=1, kernel_size=(1, 1), strides=(1, 1), activation='sigmoid', padding="SAME",
                 kernel_initializer=TruncatedNormal(stddev=0.01),
@@ -71,7 +71,7 @@ def create_loss_function(anchor_width, anchor_height, label_weight, offset_weigh
         mask_offset_y = K.clip(g_y_i + l_y_i, 0, 1.0)
 
         # number of labels
-        num_labels = K.sum(c_labels) + 1
+        num_labels = K.sum(c_labels) + 1 # Band-aid, better way to do this?
         num_non_labels = anchor_width * anchor_height - num_labels
         
         # Loss matrix for all entries
