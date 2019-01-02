@@ -92,7 +92,15 @@ def load_data_with_anchors(samples, data_dir, anno_dir, image_width, image_heigh
     
     return gt, images
 
-def data_generator(directory, annotations_dir, batch_size, image_width, image_height, anchor_width, anchor_height, sample_type='jpg'):
+def data_generator(directory,
+                   annotations_dir,
+                   batch_size,
+                   image_width,
+                   image_height,
+                   anchor_width,
+                   anchor_height,
+                   sample_type='jpg',
+                   limit_samples=None):
     
     samples = []
 
@@ -104,6 +112,8 @@ def data_generator(directory, annotations_dir, batch_size, image_width, image_he
             samples.append(index)
     
     samples = np.array(samples)
+    if limit_samples is not None:
+        samples = samples[:limit_samples]
 
     while True:
         # Select files (paths/indices) for the batch

@@ -3,7 +3,7 @@ import os
 import datetime
 from keras import optimizers
 from keras import backend as K
-from keras.callbacks import Callback, TensorBoard, ModelCheckpoint
+from keras.callbacks import Callback, TensorBoard, ModelCheckpoint, LearningRateScheduler
 
 from Models.PoolingAndFire import create_model, create_loss_function
 from PreProcess import data_generator, get_num_samples, create_rhd_annotations
@@ -35,6 +35,13 @@ HEIGHT = 320
 WIDTH = 320
 CHANNELS = 3
 
+INITIAL_LR = 1e-4
+OPT_DECAY = 1e-5
+DECAY_EPOCHES = 2.0
+DECAY_DROP = 0.8
+
+LIMIT_SAMPLES = None
+
 #VALIDATION_SPLIT = 0.3
 
 #generate_data(DATA_DIR, WIDTH, HEIGHT, box_min=50, box_max=100, num_images=1000)
@@ -57,14 +64,18 @@ l = create_loss_function(anchor_width,
                          EPSILON,
                          BATCHSIZE)
 
-num_samples = get_num_samples(DATA_DIR, type_sample='png')
-print(f"Number of sampels: {num_samples}")
+if LIMIT_SAMPLES is None:
+    num_samples = get_num_samples(DATA_DIR, type_sample='png')
+else:
+    num_samples = LIMIT_SAMPLES
+
+print(f"Number of samples: {num_samples}")
 steps_epoch = num_samples // BATCHSIZE
 if steps_epoch < 1:
     steps_epoch = 1
 print(f"Steps per epoch: {steps_epoch}")
 
-opt = optimizers.Adam(lr=1e-5, decay=1e-5)
+opt = optimizers.Adam(lr=INITIAL_LR, decay=OPT_DECAY)
 model.compile(loss=l, optimizer=opt)
 
 class PrintInfo(Callback):
@@ -77,7 +88,48 @@ class PrintInfo(Callback):
         #print(f"lr={K.eval(lr)}, decay={K.eval(decay)}")
         print("")
 
+def lr_decay(epoch):
+	initial_lrate = INITIAL_LR
+	drop = DECAY_DROP
+	epochs_drop = DECAY_EPOCHES
+	lrate = initial_lrate * np.power(drop, np.floor((1+epoch)/epochs_drop))
+	return lrate
+
+lrate = LearningRateScheduler(lr_decay)
+
+#reduce_rl = ReduceLROnPlateau(monitor='loss', 
+#                              factor=0.1,
+#                              patience=10,
+#                              verbose=0,
+#                              mode='auto',
+#                              min_delta=0.1,
+#                              cooldown=0,
+#                              min_lr=0)
+
+class LRTensorBoard(TensorBoard):
+    def __init__(self,
+                 log_dir,
+                 histogram_freq=0,
+                 batch_size=BATCHSIZE,
+                 write_graph=True,
+                 update_freq='batch'):
+
+        super().__init__(log_dir=log_dir,
+                         histogram_freq=histogram_freq,
+                         batch_size=batch_size,
+                         write_graph=write_graph,
+                         update_freq=update_freq)
+
+    #def on_epoch_end(self, epoch, logs=None):
+    #    logs.update({'lr': K.eval(self.model.optimizer.lr)})
+    #    super().on_epoch_end(epoch, logs)
+    
+    def on_batch_end(self, batch, logs=None):
+        logs.update({'lr': K.eval(self.model.optimizer.lr)})
+        super().on_batch_end(batch, logs)
+
 print_info = PrintInfo()
+
 
 tensorboard = TensorBoard(log_dir=log_folder,
                           histogram_freq=0,
@@ -89,7 +141,13 @@ tensorboard = TensorBoard(log_dir=log_folder,
                           embeddings_layer_names=None,
                           embeddings_metadata=None,
                           embeddings_data=None,
-                          update_freq='epoch')
+                          update_freq='batch')
+
+lr_tensorboard = LRTensorBoard(log_dir=log_folder,
+                               histogram_freq=0,
+                               batch_size=BATCHSIZE,
+                               write_graph=True,
+                               update_freq='batch')
 
 checkpoint = ModelCheckpoint(MODEL_SAVE_FILE,
                              monitor='loss',
@@ -99,7 +157,14 @@ checkpoint = ModelCheckpoint(MODEL_SAVE_FILE,
                              mode='auto',
                              period=1)
 
-model.fit_generator(data_generator(DATA_DIR, ANNOTATIONS_PATH, BATCHSIZE, WIDTH, HEIGHT, anchor_width, anchor_height, sample_type='png'),
+model.fit_generator(data_generator(DATA_DIR,
+                                   ANNOTATIONS_PATH,
+                                   BATCHSIZE,
+                                   WIDTH, HEIGHT,
+                                   anchor_width,
+                                   anchor_height,
+                                   sample_type='png',
+                                   limit_samples=LIMIT_SAMPLES),
                     steps_per_epoch=steps_epoch,
                     epochs=1000,
                     verbose=1,
