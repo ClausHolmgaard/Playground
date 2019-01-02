@@ -4,7 +4,7 @@ import os
 import pickle
 from tqdm import tqdm
 
-def closest_anchor_map(x, y, anchor_width, anchor_height, anchor_coords):
+def closest_anchor_map(x, y, anchor_width, anchor_height, anchor_coords, num_classes=1):
     """ Create a anchor_height x anchor_width x 3 map.
         First entry is 1 if the anchor point is closest to true point. Zero otherwise.
         Second is x offset.
@@ -16,9 +16,9 @@ def closest_anchor_map(x, y, anchor_width, anchor_height, anchor_coords):
     closest_x_offset = None
     closest_y_offset = None
     
-    res = np.zeros((anchor_width, anchor_height, 3))
+    res = np.zeros((anchor_width, anchor_height, 3*num_classes))
 
-    if(x is not None and y is not None):
+    if x is not None and y is not None and x > 0 and y < 0:
         for ix in range(anchor_width):
             for iy in range(anchor_height):
                 p_x, p_y = anchor_coords[ix, iy]
@@ -29,7 +29,7 @@ def closest_anchor_map(x, y, anchor_width, anchor_height, anchor_coords):
                     closest_y = iy
                     closest_x_offset = (x - p_x)
                     closest_y_offset = (y - p_y)
-        
+    
         res[closest_x, closest_y, 0] = 1
         res[closest_x, closest_y, 1:] = (closest_x_offset, closest_y_offset)
     
@@ -55,15 +55,16 @@ def get_anchors(image_width, image_height, anchor_width, anchor_height):
     
     return anchors
 
-def load_data_with_anchors(samples, data_dir, anno_dir, image_width, image_height, anchor_width, anchor_height, sample_type):
+def load_data_with_anchors(samples, data_dir, anno_dir, image_width, image_height, anchor_width, anchor_height, sample_type, num_classes=1):
     """
     load images
     labels will be:
-    anchor_height x anchor_width x 3
-        the last 3 entries is: 1 if closest gridpoint to a point. x and y offsets to closest point. """
+    anchor_height x anchor_width x (3 * num_classes), 1 confidence score and x,y for offset.
+    The first num_classes is confidence scores, then follows the offsets.
+    """
     anchs = get_anchors(image_width, image_height, anchor_width, anchor_height)
     
-    gt = np.zeros((len(samples), anchor_width, anchor_height, 3))
+    gt = np.zeros((len(samples), anchor_width, anchor_height, 3*num_classes))
     images = np.zeros((len(samples), image_width, image_height, 3))
     
     for c, s in enumerate(samples):
@@ -71,25 +72,27 @@ def load_data_with_anchors(samples, data_dir, anno_dir, image_width, image_heigh
         image_file = os.path.join(data_dir, "%05d.%s" % (s, sample_type))
         np_sample_file = os.path.join(anno_dir, "%05d.npy" % s)
 
-        with open(annotation_file, 'r') as f:
-            line_label = f.readline()
-            obj = line_label.split(',')
-            if obj[0] != '':
-                x = int(obj[0])
-                y = int(obj[1])
-            else:
-                x = None
-                y = None
+        if os.path.exists(np_sample_file):
+            gt[c, :, :] = np.load(np_sample_file)
+        else:
+            with open(annotation_file, 'r') as f:
+                line_labels = f.readlines()
 
-            if os.path.exists(np_sample_file):
-                gt[c, :, :] = np.load(np_sample_file)
-            else:
-                gt[c, :, :] = closest_anchor_map(x, y, anchor_width, anchor_height, anchs)
+                for line_label in line_labels:
+                    obj = line_label.split(',')
+                    if obj[0] != '':
+                        x = int(obj[0])
+                        y = int(obj[1])
+                    else:
+                        x = None
+                        y = None
+                    gt[c, :, :] = closest_anchor_map(x, y, anchor_width, anchor_height, anchs, num_classes=num_classes)
+                
                 np.save(np_sample_file, gt[c, :, :])
 
-            im = cv2.imread(image_file)
-            images[c] = im / 255.0
-    
+                im = cv2.imread(image_file)
+                images[c] = im / 255.0
+
     return gt, images
 
 def data_generator(directory,
@@ -99,6 +102,7 @@ def data_generator(directory,
                    image_height,
                    anchor_width,
                    anchor_height,
+                   num_classes=1,
                    sample_type='jpg',
                    limit_samples=None):
     
@@ -127,7 +131,8 @@ def data_generator(directory,
                                                             image_height,
                                                             anchor_width,
                                                             anchor_height,
-                                                            sample_type)
+                                                            sample_type,
+                                                            num_classes=num_classes)
 
         yield batch_images, batch_labels
 
@@ -185,7 +190,20 @@ def get_left_hand(index, annotations):
 def get_right_hand(index, annotations):
     return get_hand_points(index, annotations, 21)
 
-def create_rhd_annotations(annotations_file, annotations_out_path, color_path):
+def create_rhd_annotations(annotations_file,
+                           annotations_out_path,
+                           color_path,
+                           fingers='ALL',
+                           hands_to_annotate='BOTH',
+                           annotate_non_visible=False):
+    """
+    Create annotations for RHD dataset.
+    annotations_file is the file that came with the dataset.
+    annotations_out_path is where the resulting annotations from this will end up.
+    color_path is the path to the color images from the RHD dataset.
+    fingers is an array with the fingers to annotate, or ALL for all fingers.
+    hands is right, left or BOTH.
+    """
     with open(annotations_file, 'rb') as f:
         annotations = pickle.load(f)
 
@@ -198,13 +216,28 @@ def create_rhd_annotations(annotations_file, annotations_out_path, color_path):
             ind = int(fi.split('.')[0])
             
             right_hand = get_right_hand(ind, annotations)
+            left_hand = get_left_hand(ind, annotations)
             
             with open(anno_file_path, 'w') as write_file:
-                # Only using index finger tip for now
-                p = right_hand["Index1"]
-                visible = p[2] != 0
-                if visible:
-                    write_file.write(f"{int(p[0])},{int(p[1])}\n")
+                if hands_to_annotate.lower() == 'right':
+                    hands = [right_hand]
+                elif hands_to_annotate.lower() == 'left':
+                    hands = [left_hand]
+                else:
+                    hands = [right_hand, left_hand]
+
+                for h in hands:
+                    if fingers == 'ALL':
+                        for f, p in h.items():
+                            visible = p[2] != 0
+                            if visible or annotate_non_visible:
+                                write_file.write(f"{int(p[0])},{int(p[1])}\n")
+                    else:
+                        for f in fingers:
+                            p = h[f]
+                            visible = p[2] != 0
+                            if visible or annotate_non_visible:
+                                write_file.write(f"{int(p[0])},{int(p[1])}\n")
 
 if __name__ == "__main__":
     DATA_DIR = os.path.expanduser("~/datasets/RHD/RHD_published_v2/training/color")

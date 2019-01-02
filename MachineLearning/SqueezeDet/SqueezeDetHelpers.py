@@ -73,7 +73,7 @@ def binary_crossentropy(y, y_hat, epsilon):
 def keras_binary_crossentropy(y, y_hat, epsilon):
     return y * (-K.log(y_hat + epsilon)) + (1-y) * (-K.log(1-y_hat + epsilon))
 
-def get_all_points_from_prediction(pred, anchors, threshold=1.0, do_scale=True):
+def get_all_points_from_prediction(pred, anchors, threshold=1.0, do_scale=True, offset_weight=1.0):
     """
     pred is a prediction map in the shape (ANCHOR_HEIGHT, ANCHOR_WIDTH, 3)
     """
@@ -90,12 +90,12 @@ def get_all_points_from_prediction(pred, anchors, threshold=1.0, do_scale=True):
         # The offset can then be extracted from the labels
         (x_offset, y_offset) = pred[label_indicies[0], label_indicies[1]][0][1:]
         if do_scale:
-            x_offset = 2 * (x_offset - 0.5) * OFFSET_WEIGHT
-            y_offset = 2 * (y_offset - 0.5) * OFFSET_WEIGHT
+            x_offset = 2 * (x_offset - 0.5) * offset_weight
+            y_offset = 2 * (y_offset - 0.5) * offset_weight
 
         points[c] = (x_without_offset, y_without_offset, x_offset, y_offset)
     
-    return points.astype(np.int32)
+    return points
 
 if __name__ == "__main__":
     print("test")

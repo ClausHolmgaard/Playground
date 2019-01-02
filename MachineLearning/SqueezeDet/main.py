@@ -5,7 +5,7 @@ from keras import optimizers
 from keras import backend as K
 from keras.callbacks import Callback, TensorBoard, ModelCheckpoint, LearningRateScheduler
 
-from Models.PoolingAndFire import create_model, create_loss_function
+from Models.PoolingAndFire import create_model, create_model_multiple_detection, create_loss_function, create_loss_function_multiple_detection
 from PreProcess import data_generator, get_num_samples, create_rhd_annotations
 from GenerateData import generate_data
 
@@ -40,29 +40,45 @@ OPT_DECAY = 1e-5
 DECAY_EPOCHES = 2.0
 DECAY_DROP = 0.8
 
+NUM_CLASSES = 42
+
 LIMIT_SAMPLES = None
 
 #VALIDATION_SPLIT = 0.3
 
 #generate_data(DATA_DIR, WIDTH, HEIGHT, box_min=50, box_max=100, num_images=1000)
 
-create_rhd_annotations(RHD_ANNOTATIONS_FILE, ANNOTATIONS_PATH, DATA_DIR)
+create_rhd_annotations(RHD_ANNOTATIONS_FILE,
+                       ANNOTATIONS_PATH,
+                       DATA_DIR,
+                       fingers='ALL',
+                       hands_to_annotate='BOTH',
+                       annotate_non_visible=False)
 
-model = create_model(320, 320, 3)
+#model = create_model(320, 320, 3)
+model = create_model_multiple_detection(WIDTH, HEIGHT, CHANNELS, NUM_CLASSES)
 out_shape = model.output_shape
 anchor_width = out_shape[1]
 anchor_height = out_shape[2]
 print(f"Needed anchor shape: {anchor_width}x{anchor_height}")
 
-#model.summary()
+model.summary()
 
-l = create_loss_function(anchor_width,
-                         anchor_height,
-                         LABEL_WEIGHT,
-                         OFFSET_WEIGHT,
-                         OFFSET_LOSS_WEIGHT,
-                         EPSILON,
-                         BATCHSIZE)
+#l = create_loss_function(anchor_width,
+#                         anchor_height,
+#                         LABEL_WEIGHT,
+#                         OFFSET_WEIGHT,
+#                         OFFSET_LOSS_WEIGHT,
+#                         EPSILON,
+#                         BATCHSIZE)
+l = create_loss_function_multiple_detection(anchor_width,
+                                            anchor_height,
+                                            LABEL_WEIGHT,
+                                            OFFSET_WEIGHT,
+                                            OFFSET_LOSS_WEIGHT,
+                                            NUM_CLASSES,
+                                            EPSILON,
+                                            BATCHSIZE)
 
 if LIMIT_SAMPLES is None:
     num_samples = get_num_samples(DATA_DIR, type_sample='png')
@@ -157,14 +173,17 @@ checkpoint = ModelCheckpoint(MODEL_SAVE_FILE,
                              mode='auto',
                              period=1)
 
-model.fit_generator(data_generator(DATA_DIR,
-                                   ANNOTATIONS_PATH,
-                                   BATCHSIZE,
-                                   WIDTH, HEIGHT,
-                                   anchor_width,
-                                   anchor_height,
-                                   sample_type='png',
-                                   limit_samples=LIMIT_SAMPLES),
+data_gen = data_generator(DATA_DIR,
+                          ANNOTATIONS_PATH,
+                          BATCHSIZE,
+                          WIDTH, HEIGHT,
+                          anchor_width,
+                          anchor_height,
+                          num_classes=NUM_CLASSES,
+                          sample_type='png',
+                          limit_samples=LIMIT_SAMPLES)
+
+model.fit_generator(data_gen,
                     steps_per_epoch=steps_epoch,
                     epochs=1000,
                     verbose=1,
