@@ -73,9 +73,9 @@ def binary_crossentropy(y, y_hat, epsilon):
 def keras_binary_crossentropy(y, y_hat, epsilon):
     return y * (-K.log(y_hat + epsilon)) + (1-y) * (-K.log(1-y_hat + epsilon))
 
-def get_all_points_from_prediction(pred, anchors, threshold=1.0, do_scale=True, offset_weight=1.0):
+def get_all_points_from_prediction(pred, anchors, threshold=1.0, do_scale=True, offset_weight=1.0, num_classes=1):
     """
-    pred is a prediction map in the shape (ANCHOR_HEIGHT, ANCHOR_WIDTH, 3)
+    pred is a prediction map in the shape (ANCHOR_HEIGHT, ANCHOR_WIDTH, 3*num_classes)
     """
     # Get all points with a confidence above threshold
     label_indicies = np.where(pred[:, :, 0] >= threshold)

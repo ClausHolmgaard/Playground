@@ -3,35 +3,56 @@ import cv2
 import os
 import pickle
 from tqdm import tqdm
+from shutil import copyfile
 
-def closest_anchor_map(x, y, anchor_width, anchor_height, anchor_coords, num_classes=1):
+def train_validation_split(data_path, train_path, validation_path, train_samples, validation_samples, sample_type='jpg'):
+    """
+    Process files in data_path of the format xxxxx.sample_type.
+    It will put the samples specified in train_samples into train path, and validation samples into validation path.
+    It is done this way to preserve train and validation sample structure between local and remote machine.
+
+    ALL FILES IN train_path AND validation_path WILL BE DELETED
+    """
+    remove_files_in_folder(train_path)
+    remove_files_in_folder(validation_path)
+    
+    print(f"Doing train/validation split. {len(train_samples)} training samples, {len(validation_samples)} validation samples.")
+    for fi in tqdm(os.listdir(data_path)):
+        if fi.endswith(sample_type):
+            obj = fi.split('.')
+            try:
+                ind = int(obj[0])
+            except:
+                continue
+            if ind in train_samples:
+                copyfile(os.path.join(data_path, fi), os.path.join(train_path, fi))
+                
+            if ind in validation_samples:
+                copyfile(os.path.join(data_path, fi), os.path.join(validation_path, fi))
+    print("")
+
+def closest_anchor_map(x, y, anchor_width, anchor_height, anchor_coords):
     """ Create a anchor_height x anchor_width x 3 map.
         First entry is 1 if the anchor point is closest to true point. Zero otherwise.
         Second is x offset.
         Third is y offset. """
-    
-    closest = 10000
-    closest_x = None
-    closest_y = None
-    closest_x_offset = None
-    closest_y_offset = None
-    
-    res = np.zeros((anchor_width, anchor_height, 3*num_classes))
+    res = np.zeros((anchor_width, anchor_height, 3))
 
-    if x is not None and y is not None and x > 0 and y < 0:
-        for ix in range(anchor_width):
-            for iy in range(anchor_height):
-                p_x, p_y = anchor_coords[ix, iy]
-                dist = np.sqrt( (x - p_x)**2 + (y - p_y)**2 )
-                if dist < closest:
-                    closest = dist
-                    closest_x = ix
-                    closest_y = iy
-                    closest_x_offset = (x - p_x)
-                    closest_y_offset = (y - p_y)
-    
+    if x is not None and y is not None and x > 0 and y > 0:
+        xs = anchor_coords[:, :, 0]
+        ys = anchor_coords[:, :, 1]
+        
+        dist_matrix = np.sqrt( (xs - x)**2 + (ys - y)**2 )
+        min_val = np.min(dist_matrix)
+        closest_x, closest_y = np.where(dist_matrix==min_val)
+        closest_x = closest_x[0]  # If multiple values, the first one is used
+        closest_y = closest_y[0]
+        anchor_x, anchor_y = anchor_coords[closest_x, closest_y]
+        closest_offset_x = x - anchor_x
+        closest_offset_y = y - anchor_y
+
         res[closest_x, closest_y, 0] = 1
-        res[closest_x, closest_y, 1:] = (closest_x_offset, closest_y_offset)
+        res[closest_x, closest_y, 1:] = (closest_offset_x, closest_offset_y)
     
     return res
 
@@ -55,7 +76,7 @@ def get_anchors(image_width, image_height, anchor_width, anchor_height):
     
     return anchors
 
-def load_data_with_anchors(samples, data_dir, anno_dir, image_width, image_height, anchor_width, anchor_height, sample_type, num_classes=1):
+def load_data_with_anchors(samples, data_dir, anno_dir, image_width, image_height, anchor_width, anchor_height, sample_type, num_classes=1, only_images=False):
     """
     load images
     labels will be:
@@ -68,17 +89,16 @@ def load_data_with_anchors(samples, data_dir, anno_dir, image_width, image_heigh
     images = np.zeros((len(samples), image_width, image_height, 3))
     
     for c, s in enumerate(samples):
+        
         annotation_file = os.path.join(anno_dir, "%05d.an" % s)
         image_file = os.path.join(data_dir, "%05d.%s" % (s, sample_type))
-        np_sample_file = os.path.join(anno_dir, "%05d.npy" % s)
+        #np_sample_file = os.path.join(anno_dir, "%05d.npy" % s)
 
-        if os.path.exists(np_sample_file):
-            gt[c, :, :] = np.load(np_sample_file)
-        else:
+        if not only_images:
             with open(annotation_file, 'r') as f:
                 line_labels = f.readlines()
 
-                for line_label in line_labels:
+                for point, line_label in enumerate(line_labels):
                     obj = line_label.split(',')
                     if obj[0] != '':
                         x = int(obj[0])
@@ -86,12 +106,13 @@ def load_data_with_anchors(samples, data_dir, anno_dir, image_width, image_heigh
                     else:
                         x = None
                         y = None
-                    gt[c, :, :] = closest_anchor_map(x, y, anchor_width, anchor_height, anchs, num_classes=num_classes)
-                
-                np.save(np_sample_file, gt[c, :, :])
+                    cam = closest_anchor_map(x, y, anchor_width, anchor_height, anchs)
+                    gt[c, :, :, point] = cam[:, :, 0]
+                    gt[c, :, :, num_classes+point] = cam[:, :, 1]
+                    gt[c, :, :, num_classes+point+1] = cam[:, :, 2]
 
-                im = cv2.imread(image_file)
-                images[c] = im / 255.0
+        im = cv2.imread(image_file)
+        images[c] = im / 255.0
 
     return gt, images
 
@@ -103,21 +124,12 @@ def data_generator(directory,
                    anchor_width,
                    anchor_height,
                    num_classes=1,
-                   sample_type='jpg',
-                   limit_samples=None):
-    
-    samples = []
+                   sample_type='jpg'):
+
+    print(f"Starting data generator in: {directory}, with annotations in {annotations_dir}")
 
     # Get list of files
-    for f in os.listdir(directory):
-        index = int(f.split('.')[0])
-        end = f.split('.')[1]
-        if end == sample_type:
-            samples.append(index)
-    
-    samples = np.array(samples)
-    if limit_samples is not None:
-        samples = samples[:limit_samples]
+    samples = get_all_samples(directory, sample_type=sample_type)
 
     while True:
         # Select files (paths/indices) for the batch
@@ -145,11 +157,27 @@ def get_num_samples(data_dir, type_sample='jpg'):
     
     return num_samples
 
-def remove_files_in_folder(folder):
+def get_all_samples(data_dir, sample_type='jpg'):
+    samples = []
+    for fi in os.listdir(data_dir):
+        if fi.endswith(sample_type):
+            obj = fi.split('.')
+            try:
+                ind = int(obj[0])
+            except:
+                continue
+            samples.append(ind)
+
+    return samples
+
+def remove_files_in_folder(folder, filetype=None):
     for the_file in os.listdir(folder):
         file_path = os.path.join(folder, the_file)
         try:
             if os.path.isfile(file_path):
+                if filetype is not None:
+                    if not file_path.endswith(filetype):
+                        continue
                 os.unlink(file_path)
         except Exception as e:
             print(e)
@@ -195,7 +223,8 @@ def create_rhd_annotations(annotations_file,
                            color_path,
                            fingers='ALL',
                            hands_to_annotate='BOTH',
-                           annotate_non_visible=False):
+                           annotate_non_visible=False,
+                           force_new_files=False):
     """
     Create annotations for RHD dataset.
     annotations_file is the file that came with the dataset.
@@ -207,8 +236,12 @@ def create_rhd_annotations(annotations_file,
     with open(annotations_file, 'rb') as f:
         annotations = pickle.load(f)
 
-    remove_files_in_folder(annotations_out_path)
+    if force_new_files:
+        remove_files_in_folder(annotations_out_path)
 
+    print(f"Creating annotations in directory: {color_path}")
+    print(f"Using annotation file: {annotations_file}")
+    print(f"And outputting to: {annotations_out_path}")
     for fi in tqdm(os.listdir(color_path)):
         if fi.endswith('png'):
             anno_file_name = f"{fi.split('.')[0]}.an"
@@ -238,9 +271,12 @@ def create_rhd_annotations(annotations_file,
                             visible = p[2] != 0
                             if visible or annotate_non_visible:
                                 write_file.write(f"{int(p[0])},{int(p[1])}\n")
+    print("")
 
 if __name__ == "__main__":
     DATA_DIR = os.path.expanduser("~/datasets/RHD/RHD_published_v2/training/color")
+    TRAIN_DIR = os.path.expanduser("~/datasets/RHD/processed/train")
+    VALIDATION_DIR = os.path.expanduser("~/datasets/RHD/processed/validation")
     ANNOTATIONS_PATH = os.path.expanduser("~/datasets/RHD/RHD_published_v2/training/annotations")
     RHD_ANNOTATIONS_FILE = os.path.expanduser("~/datasets/RHD/RHD_published_v2/training/anno_training.pickle")
 
@@ -253,19 +289,19 @@ if __name__ == "__main__":
     anchor_width = 20
     anchor_height = 20
 
-    create_rhd_annotations(RHD_ANNOTATIONS_FILE, ANNOTATIONS_PATH, DATA_DIR)
+    #create_rhd_annotations(RHD_ANNOTATIONS_FILE, ANNOTATIONS_PATH, DATA_DIR)
 
-
-    dg = data_generator(DATA_DIR, ANNOTATIONS_PATH, BATCHSIZE, WIDTH, HEIGHT, anchor_width, anchor_height, sample_type='png')
+    #dg = data_generator(DATA_DIR, ANNOTATIONS_PATH, BATCHSIZE, WIDTH, HEIGHT, anchor_width, anchor_height, sample_type='png')
 
     #print(next(dg))
     
-    import matplotlib.pyplot as plt
+    #import matplotlib.pyplot as plt
 
-    ims, bs = next(dg)
+    #ims, bs = next(dg)
 
     #plt.imshow(ims[0])
     #plt.show()
 
-
+    #train_validation_split(DATA_DIR, TRAIN_DIR, VALIDATION_DIR, [20, 1, 2], [10, 11, 12], sample_type='png')
+    print(get_all_samples(DATA_DIR, sample_type='png'))
 

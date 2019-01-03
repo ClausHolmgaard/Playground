@@ -1,0 +1,115 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.9~svn20110310	//
+ANNOTATIONS_PATH	../PreProcess.py	/^    ANNOTATIONS_PATH = os.path.expanduser("~\/datasets\/RHD\/RHD_published_v2\/training\/annotations")$/;"	kind:variable	line:281
+ANNOTATIONS_PATH	../main.py	/^ANNOTATIONS_PATH = os.path.expanduser("~\/datasets\/RHD\/processed\/train\/annotations")$/;"	kind:variable	line:18
+BATCHSIZE	../PreProcess.py	/^    BATCHSIZE = 64$/;"	kind:variable	line:284
+BATCHSIZE	../main.py	/^BATCHSIZE = 64$/;"	kind:variable	line:25
+CHANNELS	../PreProcess.py	/^    CHANNELS = 3$/;"	kind:variable	line:288
+CHANNELS	../main.py	/^CHANNELS = 3$/;"	kind:variable	line:38
+CLASSES	../main.py	/^CLASSES = 1$/;"	kind:variable	line:30
+CustomModel	../Model.py	/^class CustomModel(object):$/;"	kind:class	line:9
+DATA_DIR	../PreProcess.py	/^    DATA_DIR = os.path.expanduser("~\/datasets\/RHD\/RHD_published_v2\/training\/color")$/;"	kind:variable	line:278
+DATA_DIR	../main.py	/^DATA_DIR = os.path.expanduser("~\/datasets\/RHD\/RHD_published_v2\/training\/color")$/;"	kind:variable	line:15
+DECAY_DROP	../main.py	/^DECAY_DROP = 0.8$/;"	kind:variable	line:43
+DECAY_EPOCHES	../main.py	/^DECAY_EPOCHES = 2.0$/;"	kind:variable	line:42
+EPSILON	../main.py	/^EPSILON = 1e-16$/;"	kind:variable	line:26
+GenerateData.py	../GenerateData.py	1;"	kind:file	line:1
+HEIGHT	../PreProcess.py	/^    HEIGHT = 320$/;"	kind:variable	line:286
+HEIGHT	../main.py	/^HEIGHT = 320$/;"	kind:variable	line:36
+INITIAL_LR	../main.py	/^INITIAL_LR = 1e-4$/;"	kind:variable	line:40
+KEEP_PROB	../main.py	/^KEEP_PROB = 0.5$/;"	kind:variable	line:29
+LABEL_WEIGHT	../main.py	/^LABEL_WEIGHT = 1.0$/;"	kind:variable	line:32
+LIMIT_SAMPLES	../main.py	/^LIMIT_SAMPLES = None$/;"	kind:variable	line:47
+LOG_DIR	../main.py	/^LOG_DIR = os.path.expanduser("~\/logs\/SqueezeDet\/")$/;"	kind:variable	line:13
+LRTensorBoard	../main.py	/^class LRTensorBoard(TensorBoard):$/;"	kind:class	line:136
+MODEL_SAVE_FILE	../main.py	/^MODEL_SAVE_FILE = ".\/results\/model_checkpoint.h5py"$/;"	kind:variable	line:20
+Model.py	../Model.py	1;"	kind:file	line:1
+NUM_CLASSES	../main.py	/^NUM_CLASSES = 42$/;"	kind:variable	line:45
+OFFSET_LOSS_WEIGHT	../main.py	/^OFFSET_LOSS_WEIGHT = 1.0$/;"	kind:variable	line:33
+OFFSET_WEIGHT	../main.py	/^OFFSET_WEIGHT = 40.0$/;"	kind:variable	line:34
+OPT_DECAY	../main.py	/^OPT_DECAY = 1e-5$/;"	kind:variable	line:41
+PoolingAndFire.py	../Models/PoolingAndFire.py	1;"	kind:file	line:1
+PreProcess.py	../PreProcess.py	1;"	kind:file	line:1
+PrintInfo	../Model.py	/^class PrintInfo(Callback):$/;"	kind:class	line:77
+PrintInfo	../main.py	/^class PrintInfo(Callback):$/;"	kind:class	line:108
+RHD_ANNOTATIONS_FILE	../PreProcess.py	/^    RHD_ANNOTATIONS_FILE = os.path.expanduser("~\/datasets\/RHD\/RHD_published_v2\/training\/anno_training.pickle")$/;"	kind:variable	line:282
+RHD_ANNOTATIONS_FILE	../main.py	/^RHD_ANNOTATIONS_FILE = os.path.expanduser("~\/datasets\/RHD\/RHD_published_v2\/training\/anno_training.pickle")$/;"	kind:variable	line:19
+SqueezeDetHelpers.py	../SqueezeDetHelpers.py	1;"	kind:file	line:1
+TRAIN_DIR	../PreProcess.py	/^    TRAIN_DIR = os.path.expanduser("~\/datasets\/RHD\/processed\/train")$/;"	kind:variable	line:279
+TRAIN_DIR	../main.py	/^TRAIN_DIR = os.path.expanduser("~\/datasets\/RHD\/processed\/train")$/;"	kind:variable	line:16
+VALIDATION_DIR	../PreProcess.py	/^    VALIDATION_DIR = os.path.expanduser("~\/datasets\/RHD\/processed\/validation")$/;"	kind:variable	line:280
+VALIDATION_DIR	../main.py	/^VALIDATION_DIR = os.path.expanduser("~\/datasets\/RHD\/processed\/validation")$/;"	kind:variable	line:17
+VALIDATION_SPLIT	../main.py	/^VALIDATION_SPLIT = 0.1$/;"	kind:variable	line:49
+WEIGHT_DECAY	../main.py	/^WEIGHT_DECAY = 0 # 0.001$/;"	kind:variable	line:28
+WIDTH	../PreProcess.py	/^    WIDTH = 320$/;"	kind:variable	line:287
+WIDTH	../main.py	/^WIDTH = 320$/;"	kind:variable	line:37
+__init__	../Model.py	/^    def __init__(self, image_height, image_width, channels, batchsize, log_dir, weight_decay=0.001):$/;"	kind:member	line:11
+__init__	../main.py	/^    def __init__(self,$/;"	kind:member	line:137
+__init__.py	../Models/__init__.py	1;"	kind:file	line:1
+__init__.py	../__init__.py	1;"	kind:file	line:1
+all_samples	../main.py	/^all_samples = sorted(get_all_samples(DATA_DIR, sample_type='png'))$/;"	kind:variable	line:61
+anchor_height	../PreProcess.py	/^    anchor_height = 20$/;"	kind:variable	line:291
+anchor_height	../main.py	/^anchor_height = out_shape[2]$/;"	kind:variable	line:78
+anchor_width	../PreProcess.py	/^    anchor_width = 20$/;"	kind:variable	line:290
+anchor_width	../main.py	/^anchor_width = out_shape[1]$/;"	kind:variable	line:77
+annotate_non_visible	../main.py	/^                       annotate_non_visible=False)$/;"	kind:variable	line:72
+binary_crossentropy	../SqueezeDetHelpers.py	/^def binary_crossentropy(y, y_hat, epsilon):$/;"	kind:function	line:70
+checkpoint	../main.py	/^checkpoint = ModelCheckpoint(MODEL_SAVE_FILE,$/;"	kind:variable	line:179
+closest_anchor_map	../PreProcess.py	/^def closest_anchor_map(x, y, anchor_width, anchor_height, anchor_coords, num_classes=1):$/;"	kind:function	line:34
+create_loss_function	../Models/PoolingAndFire.py	/^def create_loss_function(anchor_width, anchor_height, label_weight, offset_weight, offset_loss_weight, epsilon, batchsize):$/;"	kind:function	line:187
+create_loss_function_multiple_detection	../Models/PoolingAndFire.py	/^def create_loss_function_multiple_detection(anchor_width,$/;"	kind:function	line:98
+create_model	../Models/PoolingAndFire.py	/^def create_model(width, height, channels, weight_decay=0):$/;"	kind:function	line:7
+create_model_multiple_detection	../Models/PoolingAndFire.py	/^def create_model_multiple_detection(width, height, channels, num_classes, weight_decay=0):$/;"	kind:function	line:50
+create_rhd_annotations	../PreProcess.py	/^def create_rhd_annotations(annotations_file,$/;"	kind:function	line:224
+data_gen	../main.py	/^data_gen = data_generator(TRAIN_DIR,$/;"	kind:variable	line:187
+data_generator	../PreProcess.py	/^def data_generator(directory,$/;"	kind:function	line:125
+fingers	../main.py	/^                       fingers='ALL',$/;"	kind:variable	line:70
+fire	../SqueezeDetHelpers.py	/^    fire = fire_layer(name="fire", input = input_layer, s1x1=16, e1x1=64, e3x3=64, weight_decay=0.001)/;"	kind:variable	line:104
+fire_layer	../SqueezeDetHelpers.py	/^def fire_layer(name, input, s1x1, e1x1, e3x3, weight_decay, stdd=0.01):$/;"	kind:function	line:11
+generate_data	../GenerateData.py	/^def generate_data(data_dir=r".\/data",$/;"	kind:function	line:8
+generate_random_boximage	../GenerateData.py	/^def generate_random_boximage(width, height, box_min, box_max):$/;"	kind:function	line:28
+get_all_points_from_prediction	../SqueezeDetHelpers.py	/^def get_all_points_from_prediction(pred, anchors, threshold=1.0, do_scale=True, offset_weight=1.0, num_classes=1):$/;"	kind:function	line:76
+get_all_samples	../PreProcess.py	/^def get_all_samples(data_dir, sample_type='jpg'):$/;"	kind:function	line:166
+get_anchors	../PreProcess.py	/^def get_anchors(image_width, image_height, anchor_width, anchor_height):$/;"	kind:function	line:65
+get_hand_points	../PreProcess.py	/^def get_hand_points(index, annotations, offset):$/;"	kind:function	line:188
+get_left_hand	../PreProcess.py	/^def get_left_hand(index, annotations):$/;"	kind:function	line:218
+get_num_samples	../PreProcess.py	/^def get_num_samples(data_dir, type_sample='jpg'):$/;"	kind:function	line:157
+get_right_hand	../PreProcess.py	/^def get_right_hand(index, annotations):$/;"	kind:function	line:221
+hands_to_annotate	../main.py	/^                       hands_to_annotate='BOTH',$/;"	kind:variable	line:71
+input_layer	../SqueezeDetHelpers.py	/^    input_layer = Input(shape=(200, 200, 3), name="input")$/;"	kind:variable	line:102
+keras_binary_crossentropy	../SqueezeDetHelpers.py	/^def keras_binary_crossentropy(y, y_hat, epsilon):$/;"	kind:function	line:73
+l	../main.py	/^l = create_loss_function_multiple_detection(anchor_width,$/;"	kind:variable	line:90
+load_data_with_anchors	../PreProcess.py	/^def load_data_with_anchors(samples, data_dir, anno_dir, image_width, image_height, anchor_width, anchor_height, sample_type, num_classes=1):$/;"	kind:function	line:85
+log_folder	../main.py	/^log_folder = os.path.join(LOG_DIR, timestamp)$/;"	kind:variable	line:23
+loss_function	../Models/PoolingAndFire.py	/^    def loss_function(y_true, y_pred):$/;"	kind:function	line:107
+loss_function	../Models/PoolingAndFire.py	/^    def loss_function(y_true, y_pred):$/;"	kind:function	line:189
+lr_decay	../main.py	/^def lr_decay(epoch):$/;"	kind:function	line:118
+lr_tensorboard	../main.py	/^lr_tensorboard = LRTensorBoard(log_dir=log_folder,$/;"	kind:variable	line:173
+lrate	../main.py	/^lrate = LearningRateScheduler(lr_decay)$/;"	kind:variable	line:125
+main.py	../main.py	1;"	kind:file	line:1
+model	../main.py	/^model = create_model_multiple_detection(WIDTH, HEIGHT, CHANNELS, NUM_CLASSES)$/;"	kind:variable	line:75
+num_samples	../main.py	/^    num_samples = LIMIT_SAMPLES$/;"	kind:variable	line:56
+num_samples	../main.py	/^    num_samples = get_num_samples(DATA_DIR, type_sample='png')$/;"	kind:variable	line:54
+num_train_samples	../main.py	/^num_train_samples = int((1-VALIDATION_SPLIT) * num_samples)$/;"	kind:variable	line:58
+num_validation_samples	../main.py	/^num_validation_samples = int(VALIDATION_SPLIT * num_samples)$/;"	kind:variable	line:59
+on_batch_end	../main.py	/^    def on_batch_end(self, batch, logs=None):$/;"	kind:member	line:154
+on_epoch_end	../Model.py	/^    def on_epoch_end(self, epoch, logs=None):$/;"	kind:member	line:78
+on_epoch_end	../main.py	/^    def on_epoch_end(self, epoch, logs=None):$/;"	kind:member	line:109
+opt	../main.py	/^opt = optimizers.Adam(lr=INITIAL_LR, decay=OPT_DECAY)$/;"	kind:variable	line:105
+out_shape	../main.py	/^out_shape = model.output_shape$/;"	kind:variable	line:76
+print_info	../main.py	/^print_info = PrintInfo()$/;"	kind:variable	line:158
+remove_files_in_folder	../GenerateData.py	/^def remove_files_in_folder(folder):$/;"	kind:function	line:43
+remove_files_in_folder	../PreProcess.py	/^def remove_files_in_folder(folder):$/;"	kind:function	line:179
+set_data	../Model.py	/^    def set_data(self, images, labels):$/;"	kind:member	line:36
+steps_epoch	../main.py	/^    steps_epoch = 1$/;"	kind:variable	line:102
+steps_epoch	../main.py	/^steps_epoch = num_train_samples \/\/ BATCHSIZE$/;"	kind:variable	line:100
+tensorboard	../main.py	/^tensorboard = TensorBoard(log_dir=log_folder,$/;"	kind:variable	line:161
+timestamp	../main.py	/^timestamp = '{:%Y-%m-%d_%H_%M}'.format(datetime.datetime.now())$/;"	kind:variable	line:22
+train	../Model.py	/^    def train(self, optimizer='adam'):$/;"	kind:member	line:40
+train_samples	../main.py	/^train_samples = all_samples[:num_train_samples]$/;"	kind:variable	line:62
+train_validation_split	../PreProcess.py	/^def train_validation_split(data_path, train_path, validation_path, train_samples, validation_samples, sample_type='jpg'):$/;"	kind:function	line:8
+validation_samples	../main.py	/^validation_samples = all_samples[-num_validation_samples:]$/;"	kind:variable	line:63

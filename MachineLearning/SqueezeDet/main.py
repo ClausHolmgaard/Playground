@@ -4,23 +4,25 @@ import datetime
 from keras import optimizers
 from keras import backend as K
 from keras.callbacks import Callback, TensorBoard, ModelCheckpoint, LearningRateScheduler
+from keras.utils import multi_gpu_model
 
-from Models.PoolingAndFire import create_model, create_model_multiple_detection, create_loss_function, create_loss_function_multiple_detection
-from PreProcess import data_generator, get_num_samples, create_rhd_annotations
+from Models.PoolingAndFire import *
+from PreProcess import *
 from GenerateData import generate_data
 
 
 LOG_DIR = os.path.expanduser("~/logs/SqueezeDet/")
 #DATA_DIR = os.path.expanduser("~/datasets/Generated")
 DATA_DIR = os.path.expanduser("~/datasets/RHD/RHD_published_v2/training/color")
-ANNOTATIONS_PATH = os.path.expanduser("~/datasets/RHD/RHD_published_v2/training/annotations")
+TRAIN_DIR = os.path.expanduser("~/datasets/RHD/processed/train")
+VALIDATION_DIR = os.path.expanduser("~/datasets/RHD/processed/validation")
+ANNOTATIONS_PATH = os.path.expanduser("~/datasets/RHD/processed/train/annotations")
 RHD_ANNOTATIONS_FILE = os.path.expanduser("~/datasets/RHD/RHD_published_v2/training/anno_training.pickle")
-MODEL_SAVE_FILE = "./results/model_checkpoint.h5py"
+MODEL_SAVE_FILE = os.path.expanduser("~/results/SqueezeDet/model_checkpoint.h5py")
 
 timestamp = '{:%Y-%m-%d_%H_%M}'.format(datetime.datetime.now())
 log_folder = os.path.join(LOG_DIR, timestamp)
 
-BATCHSIZE = 64
 EPSILON = 1e-16
 
 WEIGHT_DECAY = 0 # 0.001
@@ -44,19 +46,39 @@ NUM_CLASSES = 42
 
 LIMIT_SAMPLES = None
 
-#VALIDATION_SPLIT = 0.3
+VALIDATION_SPLIT = 0.1
+
+NUM_GPU = 4
+BATCHSIZE = 64
 
 #generate_data(DATA_DIR, WIDTH, HEIGHT, box_min=50, box_max=100, num_images=1000)
 
+if LIMIT_SAMPLES is None:
+    num_samples = get_num_samples(DATA_DIR, type_sample='png')
+else:
+    num_samples = LIMIT_SAMPLES
+
+num_train_samples = int((1-VALIDATION_SPLIT) * num_samples)
+num_validation_samples = int(VALIDATION_SPLIT * num_samples)
+
+all_samples = sorted(get_all_samples(DATA_DIR, sample_type='png'))
+train_samples = all_samples[:num_train_samples]
+validation_samples = all_samples[-num_validation_samples:]
+
+train_validation_split(DATA_DIR, TRAIN_DIR, VALIDATION_DIR, train_samples, validation_samples, sample_type='png')
+
 create_rhd_annotations(RHD_ANNOTATIONS_FILE,
                        ANNOTATIONS_PATH,
-                       DATA_DIR,
+                       TRAIN_DIR,
                        fingers='ALL',
                        hands_to_annotate='BOTH',
-                       annotate_non_visible=False)
+                       annotate_non_visible=False,
+                       force_new_files=True)
 
 #model = create_model(320, 320, 3)
+
 model = create_model_multiple_detection(WIDTH, HEIGHT, CHANNELS, NUM_CLASSES)
+
 out_shape = model.output_shape
 anchor_width = out_shape[1]
 anchor_height = out_shape[2]
@@ -80,17 +102,14 @@ l = create_loss_function_multiple_detection(anchor_width,
                                             EPSILON,
                                             BATCHSIZE)
 
-if LIMIT_SAMPLES is None:
-    num_samples = get_num_samples(DATA_DIR, type_sample='png')
-else:
-    num_samples = LIMIT_SAMPLES
-
-print(f"Number of samples: {num_samples}")
-steps_epoch = num_samples // BATCHSIZE
+print(f"Number of training samples: {num_train_samples}")
+steps_epoch = num_train_samples // BATCHSIZE
 if steps_epoch < 1:
     steps_epoch = 1
 print(f"Steps per epoch: {steps_epoch}")
 
+if NUM_GPU > 1:
+    model = multi_gpu_model(model, gpus=NUM_GPU)
 opt = optimizers.Adam(lr=INITIAL_LR, decay=OPT_DECAY)
 model.compile(loss=l, optimizer=opt)
 
@@ -173,15 +192,14 @@ checkpoint = ModelCheckpoint(MODEL_SAVE_FILE,
                              mode='auto',
                              period=1)
 
-data_gen = data_generator(DATA_DIR,
+data_gen = data_generator(TRAIN_DIR,
                           ANNOTATIONS_PATH,
                           BATCHSIZE,
                           WIDTH, HEIGHT,
                           anchor_width,
                           anchor_height,
                           num_classes=NUM_CLASSES,
-                          sample_type='png',
-                          limit_samples=LIMIT_SAMPLES)
+                          sample_type='png')
 
 model.fit_generator(data_gen,
                     steps_per_epoch=steps_epoch,

@@ -59,10 +59,10 @@ def create_model_multiple_detection(width, height, channels, num_classes, weight
                 kernel_regularizer=l2(weight_decay)
                 )(input_layer)
 
-    bn = BatchNormalization(name='bn')(conv1)
-    act = Activation('relu', name='act')(bn)
+    #bn = BatchNormalization(name='bn')(conv1)
+    #act = Activation('relu', name='act')(bn)
 
-    pool1 = MaxPool2D(pool_size=(3, 3), strides=(2, 2), padding='SAME', name="pool1")(act)
+    pool1 = MaxPool2D(pool_size=(3, 3), strides=(2, 2), padding='SAME', name="pool1")(conv1)
 
     fire1_1 = fire_layer(name="fire1_1", input=pool1, s1x1=32, e1x1=128, e3x3=128, weight_decay=weight_decay)
     fire1_2 = fire_layer(name="fire1_2", input=fire1_1, s1x1=32, e1x1=128, e3x3=128, weight_decay=weight_decay)
@@ -77,6 +77,7 @@ def create_model_multiple_detection(width, height, channels, num_classes, weight
     fire3_1 = fire_layer(name="fire3_1", input=pool3, s1x1=64, e1x1=256, e3x3=256, weight_decay=weight_decay)
     fire3_2 = fire_layer(name="fire3_2", input=fire3_1, s1x1=64, e1x1=256, e3x3=256, weight_decay=weight_decay)
 
+    """
     pred_conf = Conv2D(name='pred_conf', filters=num_classes, kernel_size=(1, 1), strides=(1, 1), activation='sigmoid', padding="SAME",
                 kernel_initializer=TruncatedNormal(stddev=0.01),
                 )(fire3_2)
@@ -86,6 +87,11 @@ def create_model_multiple_detection(width, height, channels, num_classes, weight
                 )(fire3_2)
 
     preds = concatenate([pred_conf, pred_offset])
+    """
+
+    preds = Conv2D(name='preds', filters=3*num_classes, kernel_size=(1, 1), strides=(1, 1), activation='sigmoid', padding="SAME",
+                   kernel_initializer=TruncatedNormal(stddev=0.01)
+                   )(fire3_2)
 
     return Model(inputs=input_layer, outputs=preds)
 
@@ -108,8 +114,8 @@ def create_loss_function_multiple_detection(anchor_width,
         num_non_labels = anchor_width * anchor_height - num_labels
 
         # the first num_classes are confidence scores
-        c_labels = y_true[:, :, :, 0:num_classes]
-        c_predictions = y_pred[:, :, :, 0:num_classes]
+        c_labels = y_true[:, :, :, :num_classes]
+        c_predictions = y_pred[:, :, :, :num_classes]
         
         # And then we have the offsets
         offset_labels = y_true[:, :, :, num_classes:]
@@ -173,7 +179,8 @@ def create_loss_function_multiple_detection(anchor_width,
         o_loss = (o_loss_x + o_loss_y) * offset_loss_weight
         
         total_loss = K.abs(o_loss) + K.abs(c_loss)  # abs due to rounding errors. TODO: Find a better way to handle rounding errors.
-        
+        total_loss /= batchsize
+
         return total_loss
     return loss_function
         
