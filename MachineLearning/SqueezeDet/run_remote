@@ -4,7 +4,6 @@
 IP=gpu04
 USER=claus
 
-
 rsync -r -a -v -e ssh . $USER@$IP:~/code/SqueezeDet
 screen -S Remote -X stuff 'clear\n'
 screen -S Remote -X stuff 'cd ~/code/SqueezeDet\n'

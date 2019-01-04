@@ -3,7 +3,7 @@ import os
 import datetime
 from keras import optimizers
 from keras import backend as K
-from keras.callbacks import Callback, TensorBoard, ModelCheckpoint, LearningRateScheduler
+from keras.callbacks import Callback, TensorBoard, ModelCheckpoint, LearningRateScheduler, ReduceLROnPlateau
 from keras.utils import multi_gpu_model
 
 from Models.PoolingAndFire import *
@@ -35,23 +35,28 @@ OFFSET_WEIGHT = 40.0
 
 HEIGHT = 320
 WIDTH = 320
-CHANNELS = 3
+CHANNELS = 1
 
-INITIAL_LR = 1e-4
-OPT_DECAY = 1e-5
+INITIAL_LR = 1e-3
+OPT_DECAY = 1e-3
 DECAY_EPOCHES = 2.0
 DECAY_DROP = 0.8
 
 NUM_CLASSES = 42
 
-LIMIT_SAMPLES = None
-
-VALIDATION_SPLIT = 0.1
+VALIDATION_SPLIT = 0
 
 NUM_GPU = 4
 BATCHSIZE = 64
 
+LIMIT_SAMPLES = 1
+
 #generate_data(DATA_DIR, WIDTH, HEIGHT, box_min=50, box_max=100, num_images=1000)
+
+if CHANNELS == 1:
+    grey = True
+else:
+    grey = False
 
 if LIMIT_SAMPLES is None:
     num_samples = get_num_samples(DATA_DIR, type_sample='png')
@@ -72,7 +77,7 @@ create_rhd_annotations(RHD_ANNOTATIONS_FILE,
                        TRAIN_DIR,
                        fingers='ALL',
                        hands_to_annotate='BOTH',
-                       annotate_non_visible=False,
+                       annotate_non_visible=True,
                        force_new_files=True)
 
 #model = create_model(320, 320, 3)
@@ -132,14 +137,14 @@ def lr_decay(epoch):
 
 lrate = LearningRateScheduler(lr_decay)
 
-#reduce_rl = ReduceLROnPlateau(monitor='loss', 
-#                              factor=0.1,
-#                              patience=10,
-#                              verbose=0,
-#                              mode='auto',
-#                              min_delta=0.1,
-#                              cooldown=0,
-#                              min_lr=0)
+reduce_lr_plateau = ReduceLROnPlateau(monitor='loss', 
+                                      factor=0.5,
+                                      patience=2,
+                                      verbose=1,
+                                      mode='auto',
+                                      min_delta=0.1,
+                                      cooldown=0,
+                                      min_lr=0,)
 
 class LRTensorBoard(TensorBoard):
     def __init__(self,
@@ -154,17 +159,12 @@ class LRTensorBoard(TensorBoard):
                          batch_size=batch_size,
                          write_graph=write_graph,
                          update_freq=update_freq)
-
-    #def on_epoch_end(self, epoch, logs=None):
-    #    logs.update({'lr': K.eval(self.model.optimizer.lr)})
-    #    super().on_epoch_end(epoch, logs)
     
     def on_batch_end(self, batch, logs=None):
         logs.update({'lr': K.eval(self.model.optimizer.lr)})
         super().on_batch_end(batch, logs)
 
 print_info = PrintInfo()
-
 
 tensorboard = TensorBoard(log_dir=log_folder,
                           histogram_freq=0,
@@ -199,11 +199,13 @@ data_gen = data_generator(TRAIN_DIR,
                           anchor_width,
                           anchor_height,
                           num_classes=NUM_CLASSES,
-                          sample_type='png')
+                          sample_type='png',
+                          greyscale=grey,
+                          verbose=True)
 
 model.fit_generator(data_gen,
                     steps_per_epoch=steps_epoch,
-                    epochs=1000,
+                    epochs=10000,
                     verbose=1,
                     callbacks=[print_info, tensorboard, checkpoint])
 

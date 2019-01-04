@@ -60,7 +60,7 @@ def get_anchors(image_width, image_height, anchor_width, anchor_height):
     """
     Generate a anchor_height x anchor_width x 2 matrix.
     Each entry is an (x, y) corrdinate mapping to image coordinates. """
-    anchors = np.zeros((anchor_width, anchor_height, 2), dtype=np.uint32)
+    anchors = np.zeros((anchor_width, anchor_height, 2))#, dtype=np.uint32)
     num_anchor_nodes = anchor_height * anchor_width
     
     x_start = image_width / (anchor_width + 1)
@@ -76,17 +76,31 @@ def get_anchors(image_width, image_height, anchor_width, anchor_height):
     
     return anchors
 
-def load_data_with_anchors(samples, data_dir, anno_dir, image_width, image_height, anchor_width, anchor_height, sample_type, num_classes=1, only_images=False):
+def load_data_with_anchors(samples,
+                           data_dir,
+                           anno_dir,
+                           image_width,
+                           image_height,
+                           anchor_width,
+                           anchor_height,
+                           sample_type,
+                           num_classes=1,
+                           only_images=False,
+                           greyscale=False):
     """
     load images
     labels will be:
     anchor_height x anchor_width x (3 * num_classes), 1 confidence score and x,y for offset.
     The first num_classes is confidence scores, then follows the offsets.
     """
+    if greyscale:
+        channels = 1
+    else:
+        channels = 3
+
     anchs = get_anchors(image_width, image_height, anchor_width, anchor_height)
-    
     gt = np.zeros((len(samples), anchor_width, anchor_height, 3*num_classes))
-    images = np.zeros((len(samples), image_width, image_height, 3))
+    images = np.zeros((len(samples), image_width, image_height, channels))
     
     for c, s in enumerate(samples):
         
@@ -98,20 +112,26 @@ def load_data_with_anchors(samples, data_dir, anno_dir, image_width, image_heigh
             with open(annotation_file, 'r') as f:
                 line_labels = f.readlines()
 
-                for point, line_label in enumerate(line_labels):
+                point = 0
+                for line_label in line_labels:
                     obj = line_label.split(',')
                     if obj[0] != '':
-                        x = int(obj[0])
-                        y = int(obj[1])
+                        x = float(obj[0])
+                        y = float(obj[1])
                     else:
                         x = None
                         y = None
                     cam = closest_anchor_map(x, y, anchor_width, anchor_height, anchs)
                     gt[c, :, :, point] = cam[:, :, 0]
-                    gt[c, :, :, num_classes+point] = cam[:, :, 1]
-                    gt[c, :, :, num_classes+point+1] = cam[:, :, 2]
+                    gt[c, :, :, num_classes+point*2] = cam[:, :, 1]
+                    gt[c, :, :, num_classes+1+point*2] = cam[:, :, 2]
 
+                    if x is not None and y is not None:
+                        point += 1
+                    
         im = cv2.imread(image_file)
+        if greyscale:
+            im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY).reshape(image_width, image_height, 1)
         images[c] = im / 255.0
 
     return gt, images
@@ -124,12 +144,17 @@ def data_generator(directory,
                    anchor_width,
                    anchor_height,
                    num_classes=1,
-                   sample_type='jpg'):
+                   sample_type='jpg',
+                   greyscale=False,
+                   verbose=False):
 
     print(f"Starting data generator in: {directory}, with annotations in {annotations_dir}")
 
     # Get list of files
     samples = get_all_samples(directory, sample_type=sample_type)
+    
+    if verbose:
+        print(f"Samples: {samples}")
 
     while True:
         # Select files (paths/indices) for the batch
@@ -144,7 +169,8 @@ def data_generator(directory,
                                                             anchor_width,
                                                             anchor_height,
                                                             sample_type,
-                                                            num_classes=num_classes)
+                                                            num_classes=num_classes,
+                                                            greyscale=greyscale)
 
         yield batch_images, batch_labels
 
@@ -223,7 +249,7 @@ def create_rhd_annotations(annotations_file,
                            color_path,
                            fingers='ALL',
                            hands_to_annotate='BOTH',
-                           annotate_non_visible=False,
+                           annotate_non_visible=True,
                            force_new_files=False):
     """
     Create annotations for RHD dataset.
@@ -264,13 +290,13 @@ def create_rhd_annotations(annotations_file,
                         for f, p in h.items():
                             visible = p[2] != 0
                             if visible or annotate_non_visible:
-                                write_file.write(f"{int(p[0])},{int(p[1])}\n")
+                                write_file.write(f"{float(p[0])},{float(p[1])}\n")
                     else:
                         for f in fingers:
                             p = h[f]
                             visible = p[2] != 0
                             if visible or annotate_non_visible:
-                                write_file.write(f"{int(p[0])},{int(p[1])}\n")
+                                write_file.write(f"{float(p[0])},{float(p[1])}\n")
     print("")
 
 if __name__ == "__main__":

@@ -59,10 +59,10 @@ def create_model_multiple_detection(width, height, channels, num_classes, weight
                 kernel_regularizer=l2(weight_decay)
                 )(input_layer)
 
-    #bn = BatchNormalization(name='bn')(conv1)
-    #act = Activation('relu', name='act')(bn)
+    bn = BatchNormalization(name='bn')(conv1)
+    act = Activation('relu', name='act')(bn)
 
-    pool1 = MaxPool2D(pool_size=(3, 3), strides=(2, 2), padding='SAME', name="pool1")(conv1)
+    pool1 = MaxPool2D(pool_size=(3, 3), strides=(2, 2), padding='SAME', name="pool1")(act)
 
     fire1_1 = fire_layer(name="fire1_1", input=pool1, s1x1=32, e1x1=128, e3x3=128, weight_decay=weight_decay)
     fire1_2 = fire_layer(name="fire1_2", input=fire1_1, s1x1=32, e1x1=128, e3x3=128, weight_decay=weight_decay)
