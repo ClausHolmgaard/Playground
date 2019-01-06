@@ -18,7 +18,8 @@ TRAIN_DIR = os.path.expanduser("~/datasets/RHD/processed/train")
 VALIDATION_DIR = os.path.expanduser("~/datasets/RHD/processed/validation")
 ANNOTATIONS_PATH = os.path.expanduser("~/datasets/RHD/processed/train/annotations")
 RHD_ANNOTATIONS_FILE = os.path.expanduser("~/datasets/RHD/RHD_published_v2/training/anno_training.pickle")
-MODEL_SAVE_FILE = os.path.expanduser("~/results/SqueezeDet/model_checkpoint.h5py")
+MODEL_CHECKPOINT_FILE = os.path.expanduser("~/results/SqueezeDet/model_checkpoint.h5py")
+MODEL_SAVE_FILE = os.path.expanduser("~/results/SqueezeDet/model_save_done.h5py")
 
 timestamp = '{:%Y-%m-%d_%H_%M}'.format(datetime.datetime.now())
 log_folder = os.path.join(LOG_DIR, timestamp)
@@ -26,32 +27,32 @@ log_folder = os.path.join(LOG_DIR, timestamp)
 EPSILON = 1e-16
 
 WEIGHT_DECAY = 0 # 0.001
-KEEP_PROB = 0.5
-CLASSES = 1
-
-LABEL_WEIGHT = 1.0
-OFFSET_LOSS_WEIGHT = 1.0
-OFFSET_WEIGHT = 40.0
+#KEEP_PROB = 0.5
+#CLASSES = 1
 
 HEIGHT = 320
 WIDTH = 320
 CHANNELS = 1
 
+LABEL_WEIGHT = 1.0
+OFFSET_LOSS_WEIGHT = 1.0
+OFFSET_SCALE = int(320 / 20) / 2
+
 INITIAL_LR = 1e-3
-OPT_DECAY = 1e-3
-DECAY_EPOCHES = 2.0
+OPT_DECAY = 0
+DECAY_EPOCHES = 200.0
 DECAY_DROP = 0.8
 
 NUM_CLASSES = 42
 
-VALIDATION_SPLIT = 0
+VALIDATION_SPLIT = 0.1
 
 NUM_GPU = 4
 BATCHSIZE = 64
 
-LIMIT_SAMPLES = 1
+NUM_EPOCHS = 100
 
-#generate_data(DATA_DIR, WIDTH, HEIGHT, box_min=50, box_max=100, num_images=1000)
+LIMIT_SAMPLES = None
 
 if CHANNELS == 1:
     grey = True
@@ -101,7 +102,7 @@ model.summary()
 l = create_loss_function_multiple_detection(anchor_width,
                                             anchor_height,
                                             LABEL_WEIGHT,
-                                            OFFSET_WEIGHT,
+                                            OFFSET_SCALE,
                                             OFFSET_LOSS_WEIGHT,
                                             NUM_CLASSES,
                                             EPSILON,
@@ -139,10 +140,10 @@ lrate = LearningRateScheduler(lr_decay)
 
 reduce_lr_plateau = ReduceLROnPlateau(monitor='loss', 
                                       factor=0.5,
-                                      patience=2,
+                                      patience=5,
                                       verbose=1,
                                       mode='auto',
-                                      min_delta=0.1,
+                                      min_delta=0.01,
                                       cooldown=0,
                                       min_lr=0,)
 
@@ -184,7 +185,7 @@ lr_tensorboard = LRTensorBoard(log_dir=log_folder,
                                write_graph=True,
                                update_freq='batch')
 
-checkpoint = ModelCheckpoint(MODEL_SAVE_FILE,
+checkpoint = ModelCheckpoint(MODEL_CHECKPOINT_FILE,
                              monitor='loss',
                              verbose=0,
                              save_best_only=False,
@@ -198,14 +199,17 @@ data_gen = data_generator(TRAIN_DIR,
                           WIDTH, HEIGHT,
                           anchor_width,
                           anchor_height,
+                          OFFSET_SCALE,
                           num_classes=NUM_CLASSES,
                           sample_type='png',
                           greyscale=grey,
-                          verbose=True)
+                          verbose=False)
 
 model.fit_generator(data_gen,
                     steps_per_epoch=steps_epoch,
-                    epochs=10000,
+                    epochs=NUM_EPOCHS,
                     verbose=1,
-                    callbacks=[print_info, tensorboard, checkpoint])
+                    callbacks=[tensorboard, checkpoint])
 
+print("Saving completed model...")
+model.save(MODEL_SAVE_FILE)

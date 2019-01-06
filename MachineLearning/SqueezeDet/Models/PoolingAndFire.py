@@ -11,7 +11,7 @@ def create_model(width, height, channels, weight_decay=0):
     """
     input_layer = Input(shape=(width, height, channels), name="input")
 
-    conv1 = Conv2D(name='conv1', filters=128, kernel_size=(3, 3), strides=(2, 2), activation=None, padding="SAME",
+    conv1 = Conv2D(name='conv1', filters=128, kernel_size=(3, 3), strides=(2, 2), activation='None', padding="SAME",
                 use_bias=False,
                 kernel_initializer=TruncatedNormal(stddev=0.01),
                 kernel_regularizer=l2(weight_decay)
@@ -125,10 +125,10 @@ def create_loss_function_multiple_detection(anchor_width,
 
         # Loss matrix for all confidence entries
         confidence_m_all = keras_binary_crossentropy(c_labels, c_predictions, epsilon)
-        
+
         # Loss matrix for the correct label
         confidence_m_label = keras_binary_crossentropy(c_labels, c_predictions, epsilon) * c_labels
-        
+
         # Loss matrix for non labels
         confidence_m_nonlabel = confidence_m_all - confidence_m_label
         
@@ -147,12 +147,12 @@ def create_loss_function_multiple_detection(anchor_width,
         # And then the offset loss
 
         # Ground truth offsets
-        true_offset_x = offset_labels[:, :, :, num_classes::2]
-        true_offset_y = offset_labels[:, :, :, num_classes+1::2]
+        true_offset_x = offset_labels[:, :, :, 0::2]
+        true_offset_y = offset_labels[:, :, :, 1::2]
 
         # Predicted labels, weighted so larger than 1 ouputs can be predicted
-        pred_offset_x = 2 * (offset_predictions[:, :, :, num_classes::2] - 0.5) * offset_weight
-        pred_offset_y = 2 * (offset_predictions[:, :, :, num_classes+1::2] - 0.5) * offset_weight
+        pred_offset_x = 2 * (offset_predictions[:, :, :, 0::2] - 0.5)# * offset_weight
+        pred_offset_y = 2 * (offset_predictions[:, :, :, 1::2] - 0.5)# * offset_weight
         
         # Create a mask of entries different from 0
         g_x = K.less(true_offset_x, 0)
@@ -169,16 +169,26 @@ def create_loss_function_multiple_detection(anchor_width,
         mask_offset_y = K.clip(g_y_i + l_y_i, 0, 1.0)
         
         o_loss_x = K.sum(
-            K.square((true_offset_x - pred_offset_x) * mask_offset_x)
-        ) / num_labels
+            K.clip(
+                K.square(
+                    (true_offset_x - pred_offset_x) * mask_offset_x
+                    )
+            , 0, 1.0)
+            #K.square((true_offset_x - pred_offset_x))
+        ) / K.sum(mask_offset_x)
         
         o_loss_y = K.sum(
-            K.square((true_offset_y - pred_offset_y) * mask_offset_y)
-        ) / num_labels
+            K.clip(
+                K.square(
+                    (true_offset_y - pred_offset_y) * mask_offset_y
+                    )
+            , 0, 1.0)
+            #K.square((true_offset_y - pred_offset_y))
+        ) / K.sum(mask_offset_y)
         
-        o_loss = (o_loss_x + o_loss_y) * offset_loss_weight
+        o_loss = (o_loss_x + o_loss_y) * offset_loss_weight # / K.sum(c_labels)
         
-        total_loss = K.abs(o_loss) + K.abs(c_loss)  # abs due to rounding errors. TODO: Find a better way to handle rounding errors.
+        total_loss = K.abs(c_loss) + K.abs(o_loss)  # abs due to rounding errors. TODO: Find a better way to handle rounding errors.
         total_loss /= batchsize
 
         return total_loss
@@ -251,3 +261,62 @@ def create_loss_function(anchor_width, anchor_height, label_weight, offset_weigh
         return total_loss
 
     return loss_function
+
+def fire_layer(name, input, s1x1, e1x1, e3x3, weight_decay, stdd=0.01):
+    """
+    wrapper for fire layer constructions
+    :param name: name for layer
+    :param input: previous layer
+    :param s1x1: number of filters for squeezing
+    :param e1x1: number of filter for expand 1x1
+    :param e3x3: number of filter for expand 3x3
+    :param stdd: standard deviation used for intialization
+    :return: a keras fire layer
+    """
+
+    sq1x1 = Conv2D(
+        name = name + '/squeeze1x1',
+        filters=s1x1,
+        kernel_size=(1, 1),
+        strides=(1, 1),
+        use_bias=False,
+        padding='SAME',
+        kernel_initializer=TruncatedNormal(stddev=stdd),
+        activation=None,
+        kernel_regularizer=l2(weight_decay)
+        )(input)
+
+    bn1 = BatchNormalization(name=name+'/bn1')(sq1x1)
+    act1 = Activation('relu', name=name+'/act1')(bn1)
+
+    ex1x1 = Conv2D(
+        name = name + '/expand1x1',
+        filters=e1x1,
+        kernel_size=(1, 1),
+        strides=(1, 1),
+        use_bias=False,
+        padding='SAME',
+        kernel_initializer=TruncatedNormal(stddev=stdd),
+        activation=None,
+        kernel_regularizer=l2(weight_decay)
+        )(act1)
+    
+    bn2 = BatchNormalization(name=name+'/bn2')(ex1x1)
+    act2 = Activation('relu', name=name+'/act2')(bn2)
+
+    ex3x3 = Conv2D(
+        name = name + '/expand3x3',
+        filters=e3x3, kernel_size=(3, 3),
+        strides=(1, 1),
+        use_bias=False,
+        padding='SAME',
+        kernel_initializer=TruncatedNormal(stddev=stdd),
+        activation=None,
+        kernel_regularizer=l2(weight_decay)
+        )(act1)
+    
+    bn3 = BatchNormalization(name=name+'/bn3')(ex3x3)
+    act3 = Activation('relu', name=name+'/act3')(bn3)
+
+    #return concatenate([ex1x1, ex3x3], axis=3)
+    return concatenate([act2, act3], axis=3)

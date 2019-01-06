@@ -5,6 +5,29 @@ import pickle
 from tqdm import tqdm
 from shutil import copyfile
 
+
+FINGER_MAP = {"Wrist": 0,
+              "Thumb1": 1,
+              "Thumb2": 2,
+              "Thumb3": 3,
+              "Thumb4": 4,
+              "Index1": 5,
+              "Index2": 6,
+              "Index3": 7,
+              "Index4": 8,
+              "Middle1": 9,
+              "Middle2": 10,
+              "Middle3": 11,
+              "Middle4": 12,
+              "Ring1": 13,
+              "Ring2": 14,
+              "Ring3": 15,
+              "Ring4": 16,
+              "Pinky1": 17,
+              "Pinky2": 18,
+              "Pinky3": 19,
+              "Pinky4": 20}
+
 def train_validation_split(data_path, train_path, validation_path, train_samples, validation_samples, sample_type='jpg'):
     """
     Process files in data_path of the format xxxxx.sample_type.
@@ -31,7 +54,7 @@ def train_validation_split(data_path, train_path, validation_path, train_samples
                 copyfile(os.path.join(data_path, fi), os.path.join(validation_path, fi))
     print("")
 
-def closest_anchor_map(x, y, anchor_width, anchor_height, anchor_coords):
+def closest_anchor_map(x, y, anchor_width, anchor_height, anchor_coords, offset_scale):
     """ Create a anchor_height x anchor_width x 3 map.
         First entry is 1 if the anchor point is closest to true point. Zero otherwise.
         Second is x offset.
@@ -48,8 +71,8 @@ def closest_anchor_map(x, y, anchor_width, anchor_height, anchor_coords):
         closest_x = closest_x[0]  # If multiple values, the first one is used
         closest_y = closest_y[0]
         anchor_x, anchor_y = anchor_coords[closest_x, closest_y]
-        closest_offset_x = x - anchor_x
-        closest_offset_y = y - anchor_y
+        closest_offset_x = (x - anchor_x) / offset_scale
+        closest_offset_y = (y - anchor_y) / offset_scale
 
         res[closest_x, closest_y, 0] = 1
         res[closest_x, closest_y, 1:] = (closest_offset_x, closest_offset_y)
@@ -83,6 +106,7 @@ def load_data_with_anchors(samples,
                            image_height,
                            anchor_width,
                            anchor_height,
+                           offset_scale,
                            sample_type,
                            num_classes=1,
                            only_images=False,
@@ -121,7 +145,7 @@ def load_data_with_anchors(samples,
                     else:
                         x = None
                         y = None
-                    cam = closest_anchor_map(x, y, anchor_width, anchor_height, anchs)
+                    cam = closest_anchor_map(x, y, anchor_width, anchor_height, anchs, offset_scale)
                     gt[c, :, :, point] = cam[:, :, 0]
                     gt[c, :, :, num_classes+point*2] = cam[:, :, 1]
                     gt[c, :, :, num_classes+1+point*2] = cam[:, :, 2]
@@ -143,6 +167,7 @@ def data_generator(directory,
                    image_height,
                    anchor_width,
                    anchor_height,
+                   offset_scale,
                    num_classes=1,
                    sample_type='jpg',
                    greyscale=False,
@@ -168,6 +193,7 @@ def data_generator(directory,
                                                             image_height,
                                                             anchor_width,
                                                             anchor_height,
+                                                            offset_scale,
                                                             sample_type,
                                                             num_classes=num_classes,
                                                             greyscale=greyscale)
@@ -214,6 +240,38 @@ def get_hand_points(index, annotations, offset):
     Where visible is 1 for seen points, 0 for hidden.
     """
     this_index = annotations[index]['uv_vis']
+    
+    points = [None] * 21
+
+    points[FINGER_MAP["Wrist"]] = this_index[offset + 0]
+
+    points[FINGER_MAP["Thumb1"]] = this_index[offset + 1]
+    points[FINGER_MAP["Thumb2"]] = this_index[offset + 2]
+    points[FINGER_MAP["Thumb3"]] = this_index[offset + 3]
+    points[FINGER_MAP["Thumb4"]] = this_index[offset + 4]
+
+    points[FINGER_MAP["Index1"]] = this_index[offset + 5]
+    points[FINGER_MAP["Index2"]] = this_index[offset + 6]
+    points[FINGER_MAP["Index3"]] = this_index[offset + 7]
+    points[FINGER_MAP["Index4"]] = this_index[offset + 8]
+
+    points[FINGER_MAP["Middle1"]] = this_index[offset + 9]
+    points[FINGER_MAP["Middle2"]] = this_index[offset + 10]
+    points[FINGER_MAP["Middle3"]] = this_index[offset + 11]
+    points[FINGER_MAP["Middle4"]] = this_index[offset + 12]
+
+    points[FINGER_MAP["Ring1"]] = this_index[offset + 13]
+    points[FINGER_MAP["Ring2"]] = this_index[offset + 14]
+    points[FINGER_MAP["Ring3"]] = this_index[offset + 15]
+    points[FINGER_MAP["Ring4"]] = this_index[offset + 16]
+
+    points[FINGER_MAP["Pinky1"]] = this_index[offset + 17]
+    points[FINGER_MAP["Pinky2"]] = this_index[offset + 18]
+    points[FINGER_MAP["Pinky3"]] = this_index[offset + 19]
+    points[FINGER_MAP["Pinky4"]] = this_index[offset + 20]
+
+
+    """
     points = {"Wrist": this_index[offset + 0],
               "Thumb1": this_index[offset + 1],
               "Thumb2": this_index[offset + 2],
@@ -235,7 +293,8 @@ def get_hand_points(index, annotations, offset):
               "Pinky2": this_index[offset + 18],
               "Pinky3": this_index[offset + 19],
               "Pinky4": this_index[offset + 20]}
-    
+    """
+
     return points
 
 def get_left_hand(index, annotations):
@@ -287,13 +346,13 @@ def create_rhd_annotations(annotations_file,
 
                 for h in hands:
                     if fingers == 'ALL':
-                        for f, p in h.items():
+                        for p in h:
                             visible = p[2] != 0
                             if visible or annotate_non_visible:
                                 write_file.write(f"{float(p[0])},{float(p[1])}\n")
                     else:
                         for f in fingers:
-                            p = h[f]
+                            p = h[FINGER_MAP[f]]
                             visible = p[2] != 0
                             if visible or annotate_non_visible:
                                 write_file.write(f"{float(p[0])},{float(p[1])}\n")
