@@ -101,7 +101,7 @@ def get_anchors(image_width, image_height, anchor_width, anchor_height):
     """
     Generate a anchor_height x anchor_width x 2 matrix.
     Each entry is an (x, y) corrdinate mapping to image coordinates. """
-    anchors = np.zeros((anchor_width, anchor_height, 2))#, dtype=np.uint32)
+    anchors = np.zeros((anchor_width, anchor_height, 2))
     num_anchor_nodes = anchor_height * anchor_width
     
     x_start = image_width / (anchor_width + 1)
@@ -207,27 +207,6 @@ def create_data_generator(directory,
     samples = get_all_samples(directory, sample_type=sample_type)
     
     if preload_all_data:
-        """
-        all_images = []
-        all_labels = []
-        for s in tqdm(samples):
-            data = load_data_with_anchors([s],
-                                          directory,
-                                          annotations_dir,
-                                          image_width,
-                                          image_height,
-                                          anchor_width,
-                                          anchor_height,
-                                          offset_scale,
-                                          sample_type,
-                                          num_classes=num_classes,
-                                          greyscale=greyscale)
-            all_labels.append(data[0].reshape(anchor_width, anchor_height, 3*num_classes))
-            all_images.append(data[1].reshape(image_width, image_height, 1))
-
-        all_labels = np.array(all_labels)
-        all_images = np.array(all_images)
-        """
         all_labels, all_images = load_data_with_anchors(samples,
                                                         directory,
                                                         annotations_dir,
@@ -263,13 +242,10 @@ def create_data_generator(directory,
                                   samples,
                                   queue_size)
 
-        return data_generator(gen)
+        while True:
+            batch_labels, batch_images = gen.next()
 
-def data_generator(gen):
-    while True:
-        batch_labels, batch_images = gen.next()
-
-        yield batch_images, batch_labels
+            yield batch_images, batch_labels
 
 def get_num_samples(data_dir, type_sample='jpg'):
     num_samples = 0
@@ -440,7 +416,6 @@ class BackgroundGenerator(threading.Thread):
         self.start()
 
     def run(self):
-
         while self.is_running:
             batch_samples = np.random.choice(self.available_sampels, size=self.batch_size)
 

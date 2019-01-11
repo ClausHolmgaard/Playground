@@ -239,7 +239,7 @@ train_data_gen = create_data_generator(TRAIN_DIR,
                                        greyscale=grey,
                                        verbose=False,
                                        queue_size=100,
-                                       preload_all_data=True)
+                                       preload_all_data=False)
 
 model.fit_generator(train_data_gen,
                     steps_per_epoch=steps_epoch,

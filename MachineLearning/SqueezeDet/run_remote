@@ -1,8 +1,8 @@
-#IP=184.105.181.112
-#USER=paperspace
+IP=184.105.181.112
+USER=paperspace
 
-IP=gpu04
-USER=claus
+#IP=gpu04
+#USER=claus
 
 rsync -r -a -v -e ssh . $USER@$IP:~/code/SqueezeDet
 screen -S Remote -X stuff 'clear\n'
