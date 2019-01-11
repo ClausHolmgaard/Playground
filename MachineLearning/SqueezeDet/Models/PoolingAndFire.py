@@ -53,11 +53,14 @@ def create_model_multiple_detection(width, height, channels, num_classes, weight
     """
     input_layer = Input(shape=(width, height, channels), name="input")
 
-    conv1 = Conv2D(name='conv1', filters=128, kernel_size=(3, 3), strides=(2, 2), activation=None, padding="SAME",
-                use_bias=False,
-                kernel_initializer=TruncatedNormal(stddev=0.01),
-                kernel_regularizer=l2(weight_decay)
-                )(input_layer)
+    conv1 = Conv2D(name='conv1',
+                   filters=128, kernel_size=(3, 3), strides=(2, 2),
+                   activation=None,
+                   padding="SAME",
+                   use_bias=False,
+                   kernel_initializer=TruncatedNormal(stddev=0.01),
+                   kernel_regularizer=l2(weight_decay)
+                   )(input_layer)
 
     bn = BatchNormalization(name='bn')(conv1)
     act = Activation('relu', name='act')(bn)
@@ -77,21 +80,15 @@ def create_model_multiple_detection(width, height, channels, num_classes, weight
     fire3_1 = fire_layer(name="fire3_1", input=pool3, s1x1=64, e1x1=256, e3x3=256, weight_decay=weight_decay)
     fire3_2 = fire_layer(name="fire3_2", input=fire3_1, s1x1=64, e1x1=256, e3x3=256, weight_decay=weight_decay)
 
-    """
-    pred_conf = Conv2D(name='pred_conf', filters=num_classes, kernel_size=(1, 1), strides=(1, 1), activation='sigmoid', padding="SAME",
-                kernel_initializer=TruncatedNormal(stddev=0.01),
-                )(fire3_2)
+    fire3_3 = fire_layer(name="fire3_3", input=fire3_2, s1x1=96, e1x1=384, e3x3=384, weight_decay=weight_decay)
+    fire3_4 = fire_layer(name="fire3_4", input=fire3_3, s1x1=96, e1x1=384, e3x3=384, weight_decay=weight_decay)
 
-    pred_offset = Conv2D(name='pred_offset', filters=2*num_classes, kernel_size=(1, 1), strides=(1, 1), activation='sigmoid', padding="SAME",
-                kernel_initializer=TruncatedNormal(stddev=0.01)
-                )(fire3_2)
-
-    preds = concatenate([pred_conf, pred_offset])
-    """
-
-    preds = Conv2D(name='preds', filters=3*num_classes, kernel_size=(1, 1), strides=(1, 1), activation='sigmoid', padding="SAME",
+    preds = Conv2D(name='preds',
+                   filters=3*num_classes, kernel_size=(1, 1), strides=(1, 1),
+                   activation='sigmoid',
+                   padding="SAME",
                    kernel_initializer=TruncatedNormal(stddev=0.01)
-                   )(fire3_2)
+                   )(fire3_4)
 
     return Model(inputs=input_layer, outputs=preds)
 

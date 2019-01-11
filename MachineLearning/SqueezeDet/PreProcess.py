@@ -1,7 +1,10 @@
-import numpy as np
-import cv2
 import os
+import cv2
+import time
+import queue
 import pickle
+import threading
+import numpy as np
 from tqdm import tqdm
 from shutil import copyfile
 
@@ -54,28 +57,43 @@ def train_validation_split(data_path, train_path, validation_path, train_samples
                 copyfile(os.path.join(data_path, fi), os.path.join(validation_path, fi))
     print("")
 
-def closest_anchor_map(x, y, anchor_width, anchor_height, anchor_coords, offset_scale):
+def closest_anchor_map(x, y,
+                       image_width, image_height,
+                       anchor_width, anchor_height,
+                       anchor_coords,
+                       offset_scale):
     """ Create a anchor_height x anchor_width x 3 map.
         First entry is 1 if the anchor point is closest to true point. Zero otherwise.
         Second is x offset.
         Third is y offset. """
+    #anchor_coords = get_anchors(image_width, image_height, anchor_width, anchor_height)
+
+    x_limit = image_width / anchor_width
+    y_limit = image_height / anchor_height
+    dist_limit = np.sqrt(x_limit**2 + y_limit**2)
+
     res = np.zeros((anchor_width, anchor_height, 3))
 
     if x is not None and y is not None and x > 0 and y > 0:
         xs = anchor_coords[:, :, 0]
         ys = anchor_coords[:, :, 1]
-        
         dist_matrix = np.sqrt( (xs - x)**2 + (ys - y)**2 )
         min_val = np.min(dist_matrix)
+        closest_xs, closest_ys = np.where(dist_matrix<=dist_limit)
+        
+        # Set offsets
+        for cx, cy in zip(closest_xs, closest_ys):
+            anchor_x, anchor_y = anchor_coords[cx, cy]
+            closest_offset_x = (x - anchor_x) / offset_scale
+            closest_offset_y = (y - anchor_y) / offset_scale
+            res[cx, cy, 1:] = (closest_offset_x, closest_offset_y)
+        
+        # Set label
         closest_x, closest_y = np.where(dist_matrix==min_val)
         closest_x = closest_x[0]  # If multiple values, the first one is used
         closest_y = closest_y[0]
-        anchor_x, anchor_y = anchor_coords[closest_x, closest_y]
-        closest_offset_x = (x - anchor_x) / offset_scale
-        closest_offset_y = (y - anchor_y) / offset_scale
-
         res[closest_x, closest_y, 0] = 1
-        res[closest_x, closest_y, 1:] = (closest_offset_x, closest_offset_y)
+        
     
     return res
 
@@ -110,7 +128,8 @@ def load_data_with_anchors(samples,
                            sample_type,
                            num_classes=1,
                            only_images=False,
-                           greyscale=False):
+                           greyscale=False,
+                           progressbar=False):
     """
     load images
     labels will be:
@@ -126,11 +145,16 @@ def load_data_with_anchors(samples,
     gt = np.zeros((len(samples), anchor_width, anchor_height, 3*num_classes))
     images = np.zeros((len(samples), image_width, image_height, channels))
     
-    for c, s in enumerate(samples):
+    if progressbar:
+        print(f"Loading {len(samples)} samples")
+        ite = enumerate(tqdm(samples))
+    else:
+        ite = enumerate(samples)
+
+    for c, s in ite:
         
         annotation_file = os.path.join(anno_dir, "%05d.an" % s)
         image_file = os.path.join(data_dir, "%05d.%s" % (s, sample_type))
-        #np_sample_file = os.path.join(anno_dir, "%05d.npy" % s)
 
         if not only_images:
             with open(annotation_file, 'r') as f:
@@ -145,7 +169,7 @@ def load_data_with_anchors(samples,
                     else:
                         x = None
                         y = None
-                    cam = closest_anchor_map(x, y, anchor_width, anchor_height, anchs, offset_scale)
+                    cam = closest_anchor_map(x, y, image_width, image_height, anchor_width, anchor_height, anchs, offset_scale)
                     gt[c, :, :, point] = cam[:, :, 0]
                     gt[c, :, :, num_classes+point*2] = cam[:, :, 1]
                     gt[c, :, :, num_classes+1+point*2] = cam[:, :, 2]
@@ -160,43 +184,90 @@ def load_data_with_anchors(samples,
 
     return gt, images
 
-def data_generator(directory,
-                   annotations_dir,
-                   batch_size,
-                   image_width,
-                   image_height,
-                   anchor_width,
-                   anchor_height,
-                   offset_scale,
-                   num_classes=1,
-                   sample_type='jpg',
-                   greyscale=False,
-                   verbose=False):
+def create_data_generator(directory,
+                          annotations_dir,
+                          batch_size,
+                          image_width,
+                          image_height,
+                          channels,
+                          anchor_width,
+                          anchor_height,
+                          offset_scale,
+                          num_classes=1,
+                          sample_type='jpg',
+                          greyscale=False,
+                          verbose=False,
+                          queue_size=1,
+                          preload_all_data=False):
 
     print(f"Starting data generator in: {directory}, with annotations in {annotations_dir}")
-
-    # Get list of files
-    samples = get_all_samples(directory, sample_type=sample_type)
-    
     if verbose:
         print(f"Samples: {samples}")
 
-    while True:
-        # Select files (paths/indices) for the batch
-        #batch_paths = np.random.choice(a=files, size=batch_size)
-        batch_samples = np.random.choice(samples, size=batch_size)
+    samples = get_all_samples(directory, sample_type=sample_type)
+    
+    if preload_all_data:
+        """
+        all_images = []
+        all_labels = []
+        for s in tqdm(samples):
+            data = load_data_with_anchors([s],
+                                          directory,
+                                          annotations_dir,
+                                          image_width,
+                                          image_height,
+                                          anchor_width,
+                                          anchor_height,
+                                          offset_scale,
+                                          sample_type,
+                                          num_classes=num_classes,
+                                          greyscale=greyscale)
+            all_labels.append(data[0].reshape(anchor_width, anchor_height, 3*num_classes))
+            all_images.append(data[1].reshape(image_width, image_height, 1))
 
-        batch_labels, batch_images = load_data_with_anchors(batch_samples,
-                                                            directory,
-                                                            annotations_dir,
-                                                            image_width,
-                                                            image_height,
-                                                            anchor_width,
-                                                            anchor_height,
-                                                            offset_scale,
-                                                            sample_type,
-                                                            num_classes=num_classes,
-                                                            greyscale=greyscale)
+        all_labels = np.array(all_labels)
+        all_images = np.array(all_images)
+        """
+        all_labels, all_images = load_data_with_anchors(samples,
+                                                        directory,
+                                                        annotations_dir,
+                                                        image_width,
+                                                        image_height,
+                                                        anchor_width,
+                                                        anchor_height,
+                                                        offset_scale,
+                                                        sample_type,
+                                                        num_classes=num_classes,
+                                                        greyscale=greyscale,
+                                                        progressbar=True)
+        
+        while True:
+            ind = np.random.randint(0, len(samples), size=batch_size)
+
+            batch_labels = all_labels[ind]
+            batch_images = all_images[ind]
+
+            yield batch_images, batch_labels
+    else:
+        gen = BackgroundGenerator(directory,
+                                  batch_size,
+                                  annotations_dir,
+                                  image_width,
+                                  image_height,
+                                  anchor_width,
+                                  anchor_height,
+                                  offset_scale,
+                                  sample_type,
+                                  num_classes,
+                                  greyscale,
+                                  samples,
+                                  queue_size)
+
+        return data_generator(gen)
+
+def data_generator(gen):
+    while True:
+        batch_labels, batch_images = gen.next()
 
         yield batch_images, batch_labels
 
@@ -270,31 +341,6 @@ def get_hand_points(index, annotations, offset):
     points[FINGER_MAP["Pinky3"]] = this_index[offset + 19]
     points[FINGER_MAP["Pinky4"]] = this_index[offset + 20]
 
-
-    """
-    points = {"Wrist": this_index[offset + 0],
-              "Thumb1": this_index[offset + 1],
-              "Thumb2": this_index[offset + 2],
-              "Thumb3": this_index[offset + 3],
-              "Thumb4": this_index[offset + 4],
-              "Index1": this_index[offset + 5],
-              "Index2": this_index[offset + 6],
-              "Index3": this_index[offset + 7],
-              "Index4": this_index[offset + 8],
-              "Middle1": this_index[offset + 9],
-              "Middle2": this_index[offset + 10],
-              "Middle3": this_index[offset + 11],
-              "Middle4": this_index[offset + 12],
-              "Ring1": this_index[offset + 13],
-              "Ring2": this_index[offset + 14],
-              "Ring3": this_index[offset + 15],
-              "Ring4": this_index[offset + 16],
-              "Pinky1": this_index[offset + 17],
-              "Pinky2": this_index[offset + 18],
-              "Pinky3": this_index[offset + 19],
-              "Pinky4": this_index[offset + 20]}
-    """
-
     return points
 
 def get_left_hand(index, annotations):
@@ -358,6 +404,64 @@ def create_rhd_annotations(annotations_file,
                                 write_file.write(f"{float(p[0])},{float(p[1])}\n")
     print("")
 
+class BackgroundGenerator(threading.Thread):
+    def __init__(self,
+                 directory,
+                 batch_size,
+                 annotations_dir,
+                 image_width,
+                 image_height,
+                 anchor_width,
+                 anchor_height,
+                 offset_scale,
+                 sample_type,
+                 num_classes,
+                 greyscale,
+                 available_sampels,
+                 queue_size=1):
+        threading.Thread.__init__(self)
+
+        self.directory = directory
+        self.batch_size = batch_size
+        self.annotations_dir = annotations_dir
+        self.image_width = image_width
+        self.image_height = image_height
+        self.anchor_width = anchor_width
+        self.anchor_height = anchor_height
+        self.offset_scale = offset_scale
+        self.sample_type = sample_type
+        self.num_classes = num_classes
+        self.greyscale = greyscale
+        self.available_sampels = available_sampels
+
+        self.queue = queue.Queue(maxsize=queue_size)
+        self.daemon = True
+        self.is_running = True
+        self.start()
+
+    def run(self):
+
+        while self.is_running:
+            batch_samples = np.random.choice(self.available_sampels, size=self.batch_size)
+
+            self.queue.put(load_data_with_anchors(batch_samples,
+                                                  self.directory,
+                                                  self.annotations_dir,
+                                                  self.image_width,
+                                                  self.image_height,
+                                                  self.anchor_width,
+                                                  self.anchor_height,
+                                                  self.offset_scale,
+                                                  self.sample_type,
+                                                  num_classes=self.num_classes,
+                                                  greyscale=self.greyscale))
+
+    def stop(self):
+        self.is_running = False
+
+    def next(self):
+        return self.queue.get()
+
 if __name__ == "__main__":
     DATA_DIR = os.path.expanduser("~/datasets/RHD/RHD_published_v2/training/color")
     TRAIN_DIR = os.path.expanduser("~/datasets/RHD/processed/train")
@@ -388,5 +492,10 @@ if __name__ == "__main__":
     #plt.show()
 
     #train_validation_split(DATA_DIR, TRAIN_DIR, VALIDATION_DIR, [20, 1, 2], [10, 11, 12], sample_type='png')
-    print(get_all_samples(DATA_DIR, sample_type='png'))
+    #print(get_all_samples(DATA_DIR, sample_type='png'))
 
+    
+    gen = BackgroundGenerator()
+    time.sleep(2)
+    gen.stop()
+    time.sleep(1)
