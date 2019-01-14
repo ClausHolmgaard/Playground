@@ -43,19 +43,22 @@ OFFSET_SCALE = int(320 / 20) / 2
 
 INITIAL_LR = 1e-3
 OPT_DECAY = 0
-DECAY_EPOCHES = 50.0
-DECAY_DROP = 0.2
+DECAY_EPOCHES = 200.0
+DECAY_DROP = 0.1
 
 NUM_CLASSES = 42
 
 VALIDATION_SPLIT = 0.1
 
 NUM_GPU = 1
-BATCHSIZE = 64
+BATCHSIZE = 32
 
-NUM_EPOCHS = 250
+NUM_EPOCHS = 200
 
 LIMIT_SAMPLES = None
+STEPS_EPOCH_SCALE = 1
+
+PRELOAD_DATA=False
 
 if CHANNELS == 1:
     grey = True
@@ -148,7 +151,7 @@ opt = optimizers.Adam(lr=INITIAL_LR, decay=OPT_DECAY)
 model.compile(loss=l, optimizer=opt)
 
 print(f"Number of training samples: {num_train_samples}")
-steps_epoch = num_train_samples // BATCHSIZE
+steps_epoch = STEPS_EPOCH_SCALE * num_train_samples // BATCHSIZE
 if steps_epoch < 1:
     steps_epoch = 1
 print(f"Steps per epoch: {steps_epoch}")
@@ -239,7 +242,7 @@ train_data_gen = create_data_generator(TRAIN_DIR,
                                        greyscale=grey,
                                        verbose=False,
                                        queue_size=100,
-                                       preload_all_data=False)
+                                       preload_all_data=PRELOAD_DATA)
 
 model.fit_generator(train_data_gen,
                     steps_per_epoch=steps_epoch,

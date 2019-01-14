@@ -74,7 +74,7 @@ def closest_anchor_map(x, y,
 
     res = np.zeros((anchor_width, anchor_height, 3))
 
-    if x is not None and y is not None and x > 0 and y > 0:
+    if x is not None and y is not None and x > 0 and y > 0 and x < image_width and y < image_height:
         xs = anchor_coords[:, :, 0]
         ys = anchor_coords[:, :, 1]
         dist_matrix = np.sqrt( (xs - x)**2 + (ys - y)**2 )
