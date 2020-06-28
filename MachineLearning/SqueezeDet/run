@@ -1,0 +1,3 @@
+screen -S Run -X stuff 'clear\n'
+screen -S Run -X stuff 'cd /home/clh/git/Playground/MachineLearning/SqueezeDet\n'
+screen -S Run -X stuff 'anaconda main.py\n'

@@ -1,4 +1,7 @@
 *.swp
 *.mkv
+*.jpg
 
+data/
+results/
 
